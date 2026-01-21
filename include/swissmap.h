@@ -40,22 +40,22 @@ swiss_init_ctrl(u8* ctrl, u64 cap)
 }
 
 static inline u8
-swiss_match_h2(u8* ctrl, u8 h2, u64 base)
+swiss_match_h2(u8* ctrl, u8 h2, u64 base, u64 mask)
 {
-	u8	mask = 0;
+	u8	mask_out = 0;
 
 	for (u32 i = 0; i < 8; i++)
-		if (ctrl[base + i] == h2)
-			mask |= (1u << i);
+		if (ctrl[(base + i) & mask] == h2)
+			mask_out |= (1u << i);
 
-	return mask;
+	return mask_out;
 }
 
 static inline s32
-swiss_find_empty(u8* ctrl, u64 base)
+swiss_find_empty(u8* ctrl, u64 base, u64 mask)
 {
 	for (u32 i = 0; i < 8; i++)
-		if (ctrl[base + i] == SWISS_EMPTY)
+		if (ctrl[(base + i) & mask] == SWISS_EMPTY)
 			return i;
 
 	return -1;
@@ -85,14 +85,17 @@ name*								\
 name##_new(arena_t* arena, u64 capacity)			\
 {								\
 	name*	map	= ARENA_PUSH_STRUCT(arena, name);	\
+	u64	new_cap	= 1;					\
 								\
-	map->ctrl	= ARENA_PUSH_ARRAY(arena, u8, capacity);\
-	map->keys	= ARENA_PUSH_ARRAY(arena, K_t, capacity);\
-	map->values	= ARENA_PUSH_ARRAY(arena, V_t, capacity);\
-	map->capacity	= capacity;				\
+	while (new_cap < capacity)				\
+		new_cap <<= 1;					\
+	map->ctrl	= ARENA_PUSH_ARRAY(arena, u8, new_cap);\
+	map->keys	= ARENA_PUSH_ARRAY(arena, K_t, new_cap);\
+	map->values	= ARENA_PUSH_ARRAY(arena, V_t, new_cap);\
+	map->capacity	= new_cap;				\
 	map->size	= 0;					\
 								\
-	swiss_init_ctrl(map->ctrl, capacity);			\
+	swiss_init_ctrl(map->ctrl, new_cap);			\
 								\
 	return map;						\
 }
@@ -105,10 +108,11 @@ name##_get(name* map, K_t key)					\
 	u8	h2	= swiss_h2(hash);			\
 	u64	mask	= map->capacity - 1;			\
 	u64	group	= swiss_h1(hash, map->capacity);	\
+	u64	start	= group;				\
 								\
-	while (1)						\
+	do							\
 	{							\
-		u8	m = swiss_match_h2(map->ctrl, h2, group);\
+		u8	m = swiss_match_h2(map->ctrl, h2, group, mask);\
 								\
 		while (m)					\
 		{						\
@@ -121,11 +125,14 @@ name##_get(name* map, K_t key)					\
 			m &= m - 1;				\
 		}						\
 								\
-		if (swiss_find_empty(map->ctrl, group) != -1)	\
+		if (swiss_find_empty(map->ctrl, group, mask) != -1)\
 			return 0;				\
 								\
 		group = (group + 8) & mask;			\
 	}							\
+	while (group != start);					\
+								\
+	return 0;						\
 }
 
 #define SWISSMAP_DEFINE_PUT(name, K_t, V_t, hash_fn, eq_fn)	\
@@ -137,9 +144,12 @@ name##_put(name* map, K_t key, V_t value)			\
 	u64	mask	= map->capacity - 1;			\
 	u64	group	= swiss_h1(hash, map->capacity);	\
 								\
-	while (map->size < map->capacity)			\
+	if (map->size >= map->capacity)				\
+		return;						\
+								\
+	while (1)						\
 	{							\
-		u8	m = swiss_match_h2(map->ctrl, h2, group);\
+		u8	m = swiss_match_h2(map->ctrl, h2, group, mask);\
 								\
 		while (m)					\
 		{						\
@@ -155,11 +165,11 @@ name##_put(name* map, K_t key, V_t value)			\
 			m &= m - 1;				\
 		}						\
 								\
-		s32	empty	= swiss_find_empty(map->ctrl, group);	\
+		s32	empty	= swiss_find_empty(map->ctrl, group, mask);\
 								\
 		if (empty != -1)				\
 		{						\
-			u64	idx	= (group + empty) & mask;	\
+			u64	idx	= (group + empty) & mask;\
 								\
 			map->ctrl[idx]	= h2;			\
 			map->keys[idx]	= key;			\
