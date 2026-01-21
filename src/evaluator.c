@@ -10,7 +10,21 @@
 static s32	evaluator_memcmp(token_t* t1, token_t* t2);
 static u64	evaluator_hash(token_t* t);
 
-SWISSMAP_DEFINE_FUNCTIONS(variables_map, token_t*, return_value_t, evaluator_hash, evaluator_memcmp)
+SWISSMAP_DEFINE_FUNCTIONS(variables_map, token_t*, return_value_t*, evaluator_hash, evaluator_memcmp)
+
+static inline void
+evaluator_memcpy_value(arena_t* arena, return_value_t* dst, return_value_t* src)
+{
+	memcpy(dst, src, sizeof(return_value_t));
+	
+	while (src->next)
+	{
+		dst->next = ARENA_PUSH_STRUCT(arena, return_value_t);
+		memcpy(dst->next, src->next, sizeof(return_value_t));
+		dst = dst->next;
+		src = src->next;
+	}
+}
 
 static inline s32
 evaluator_memcmp(token_t* t1, token_t* t2)
@@ -33,6 +47,72 @@ evaluator_hash(token_t* t)
 		hash = ((hash << 5) + hash) + t->start[i];
 
 	return hash;
+}
+
+static inline void
+evaluator_print_res_val(return_value_t* res)
+{
+	switch (res->type)
+	{
+	case RET_INT:
+		printf("%ld", res->i);
+		break;
+	case RET_FLOAT:
+		printf("%g", res->f);
+		break;
+	case RET_ERR:
+		printf("Error while evaluating expression");
+		return;
+	default:
+		return;
+	}
+	
+	switch (res->oom)
+	{
+		case OOM_NANO:
+			printf(" nano");
+			break;
+		case OOM_MICRO:
+			printf(" micro");
+			break;
+		case OOM_MILLI:
+			printf(" milli");
+			break;
+		case OOM_CENTI:
+			printf(" centi");
+			break;
+		case OOM_DECI:
+			printf(" deci");
+			break;
+		default:
+	}
+
+	switch (res->unit)
+	{
+	case U_NONE:
+		break;
+	case U_VOLT:
+		printf(" volt");
+		break;
+	case U_AMPERE:
+		printf(" ampere");
+		break;
+	case U_WATT:
+		printf(" watt");
+		break;
+	case U_OHM:
+		printf(" ohm");
+		break;
+	case U_UNSUPPORTED:
+		printf(" unsupported unit");
+		break;
+	case U_UNKNOWN:
+		printf(" unknown function");
+		break;
+	case U_ERR:
+		printf(" erronous unit");
+		break;
+	}
 }
 
 static inline f64
@@ -314,6 +394,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 	ret->unit	= U_NONE;
 	ret->oom	= OOM_NONE;
 	ret->token	= &node->token;
+	ret->next	= 0;
 	
 	switch (node->type)
 	{
@@ -329,7 +410,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				if (memcmp("ohm", node->token.start, 3) == 0)
 					return_value_convert_unit(ret, U_OHM);
 				else
-					ret->unit = U_UNKNOWN;
+					goto def1;
 				break;
 			case 4:
 				if (memcmp("volt", node->token.start, 4) == 0)
@@ -341,7 +422,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				else if (memcmp("deci", node->token.start, 4) == 0)
 					return_value_convert_to_deci(ret);
 				else
-					ret->unit = U_UNKNOWN;
+					goto def1;
 				break;
 			case 5:
 				if (memcmp("micro", node->token.start, 5) == 0)
@@ -351,22 +432,57 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				else if (memcmp("centi", node->token.start, 5) == 0)
 					return_value_convert_to_centi(ret);
 				else
-					ret->unit = U_UNKNOWN;
+					goto def1;
 				break;
 			case 6:
 				if (memcmp("ampere", node->token.start, 6) == 0)
 					return_value_convert_unit(ret, U_AMPERE);
 				else
-					ret->unit = U_UNKNOWN;
+					goto def1;
 				break;
 			case 14:
 				if (memcmp("base_magnitude", node->token.start, 14) == 0)
 					return_value_convert_to_base(ret);
 				else
-					ret->unit = U_UNKNOWN;
+					goto def1;
 				break;
 			default:
-				ret->unit = U_UNKNOWN;
+			def1:
+				return_value_t**	var = variables_map_get(vmap, &node->token);
+				
+				if (!var || !*var)
+				{
+					ret->unit = U_UNKNOWN;
+					break;
+				}
+
+				s64		idx	= 0;
+				s64		i	= 0;
+				return_value_t*	tmp	= *var;
+
+				switch (ret->token->symbol)
+				{
+				case TK_INT:
+					idx = ret->i;
+					break;
+				case TK_FLOAT:
+					idx = (s64)ret->f;
+					break;
+				default:
+				}
+
+				while (i < idx && tmp->next)
+				{
+					tmp = tmp->next;
+					i++;
+				}
+				
+				if (idx != i)
+					ret->type = RET_ERR;
+				else
+					memcpy(ret, tmp, sizeof(return_value_t));
+
+				ret->next = 0;
 			} // switch (node->token.length)
 			
 			break;
@@ -403,10 +519,10 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			// Variables
 			default:
 			def:
-				return_value_t*	var = variables_map_get(vmap, &node->token);
-
+				return_value_t**	var = variables_map_get(vmap, &node->token);
+				
 				if (var)
-					ret = var;
+					ret = *var;
 				else
 					ret->type = RET_BINDABLE;
 			}
@@ -426,6 +542,30 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		default:
 			ret->type = RET_ERR;
 			break;
+		}
+		
+		if (node->left && ret->type != RET_ERR)
+		{
+			s64	idx	= 0;
+			s64	i	= 0;
+
+			switch (node->token.symbol)
+			{
+			case TK_INT:
+				idx = ret->i;
+				break;
+			case TK_FLOAT:
+				idx = (s64)ret->f;
+				break;
+			default:
+			}
+
+			ret = evaluate(arena, node->left, arena_vmap, vmap);
+
+			for (; i < idx && ret->next; i++, ret = ret->next);
+			
+			if (idx != i)
+				ret->type = RET_ERR;
 		}
 		break;
 	case EXPR_UOP:
@@ -459,6 +599,16 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 		switch (node->token.symbol)
 		{
+		case TK_LIST:
+			// TODO: maybe add a tail to return_value_t
+			return_value_t*	tail = l;
+
+			while (tail->next)
+				tail = tail->next;
+
+			tail->next = r;
+			ret = l;
+			break;
 		case TK_BIND:
 			if (l->type == RET_BINDABLE || r->type == RET_BINDABLE)
 			{
@@ -471,7 +621,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				memcpy(tok, var->token, sizeof(token_t));
 				memcpy(tok_str, tok->start, tok->length);
 				tok->start = tok_str;
-				variables_map_put(vmap, tok, *val);
+
+				return_value_t*	mapped_val = ARENA_PUSH_STRUCT(
+								arena_vmap, return_value_t);
+				evaluator_memcpy_value(arena_vmap, mapped_val, val);
+				variables_map_put(vmap, tok, mapped_val);
 				ret = val;
 			}
 			else
@@ -799,69 +953,26 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 void
 evaluator_print_res(return_value_t* res)
 {
-	switch (res->type)
+	if (res->next)
 	{
-	case RET_INT:
-		printf("%ld", res->i);
-		break;
-	case RET_FLOAT:
-		printf("%g", res->f);
-		break;
-	case RET_ERR:
-		printf("Error while evaluating expression\n");
-		return;
-	default:
-		printf("\n");
-		return;
-	}
+		printf("(");
+		
+		evaluator_print_res_val(res);
+		res = res->next;
 
-	switch (res->oom)
-	{
-		case OOM_NANO:
-			printf(" nano");
-			break;
-		case OOM_MICRO:
-			printf(" micro");
-			break;
-		case OOM_MILLI:
-			printf(" milli");
-			break;
-		case OOM_CENTI:
-			printf(" centi");
-			break;
-		case OOM_DECI:
-			printf(" deci");
-			break;
-		default:
-	}
+		while (res)
+		{
+			printf(", ");
+			evaluator_print_res_val(res);
+			res = res->next;
+		}
 
-	switch (res->unit)
-	{
-	case U_NONE:
-		printf("\n");
-		break;
-	case U_VOLT:
-		printf(" volt\n");
-		break;
-	case U_AMPERE:
-		printf(" ampere\n");
-		break;
-	case U_WATT:
-		printf(" watt\n");
-		break;
-	case U_OHM:
-		printf(" ohm\n");
-		break;
-	case U_UNSUPPORTED:
-		printf(" unsupported unit\n");
-		break;
-	case U_UNKNOWN:
-		printf(" unknown function\n");
-		break;
-	case U_ERR:
-		printf(" erronous unit\n");
-		break;
+		printf(")");
 	}
+	else
+		evaluator_print_res_val(res);
+	
+	printf("\n");
 }
 
 #ifdef TESTER
@@ -893,16 +1004,17 @@ test_evaluator_atof(void)
 	assert(evaluator_atof(&tok) >= 256.34 - eps && evaluator_atof(&tok) <= 256.34 + eps);
 }
 
-void
-test_evaluate(void)
+static void
+test_evaluate_base(void)
 {
-	char*		test	= "-5 - 10.0 * 5";
 	arena_t*	arena	= ARENA_ALLOC();
 	variables_map*	vmap	= variables_map_new(arena, 100);
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
 	f64		eps	= 0.000001;
+
+	char*	test = "-5 - 10.0 * 5";
 
 	lexer_init(&lexer, test, 13);
 
@@ -912,7 +1024,7 @@ test_evaluate(void)
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -55.0 - eps && res->f <= -55.0 + eps);
 	
-	char*		test2	= "-5 - 10.0 * (5 ^ 2)";
+	char*	test2 = "-5 - 10.0 * (5 ^ 2)";
 	
 	lexer_init(&lexer, test2, 19);
 
@@ -922,7 +1034,20 @@ test_evaluate(void)
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -255.0 - eps && res->f <= -255.0 + eps);
 	
-	char*		test3	= "ampere(5)";
+	arena_release(arena);
+}
+
+static void
+test_evaluate_units_oom(void)
+{
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+	lexer_t		lexer;
+	ast_node_t*	tree	= 0;
+	return_value_t*	res	= 0;
+	f64		eps	= 0.000001;
+
+	char*	test3 = "ampere(5)";
 	
 	lexer_init(&lexer, test3, 9);
 
@@ -934,7 +1059,7 @@ test_evaluate(void)
 	assert(res->unit == U_AMPERE);
 	assert(res->oom == OOM_NONE);
 	
-	char*		test4	= "milli(volt(5)) + base_magnitude(volt(5))";
+	char*	test4 = "milli(volt(5)) + base_magnitude(volt(5))";
 	
 	lexer_init(&lexer, test4, 40);
 
@@ -946,7 +1071,7 @@ test_evaluate(void)
 	assert(res->unit == U_VOLT);
 	assert(res->oom == OOM_MILLI);
 
-	char*		test5	= "milli(volt(5)) + volt(5)";
+	char*	test5 = "milli(volt(5)) + volt(5)";
 	
 	lexer_init(&lexer, test5, 24);
 
@@ -958,7 +1083,7 @@ test_evaluate(void)
 	assert(res->unit == U_VOLT);
 	assert(res->oom == OOM_MILLI);
 
-	char*		test6	= "milli(volt(5)) * milli(ampere(5))";
+	char*	test6 = "milli(volt(5)) * milli(ampere(5))";
 	
 	lexer_init(&lexer, test6, 33);
 
@@ -969,11 +1094,23 @@ test_evaluate(void)
 	assert(res->f >= 0.025 - eps && res->f <= 0.025 + eps);
 	assert(res->unit == U_WATT);
 	assert(res->oom == OOM_MILLI);
-	
+
+	arena_release(arena);
+}
+
+static void
+test_evaluate_binding(void)
+{
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+	lexer_t		lexer;
+	ast_node_t*	tree	= 0;
+	return_value_t*	res	= 0;
+
 	char*	test7	= "x :: 10";
 	token_t	x	= { TK_ID, test7, 1, 1 };
 
-	lexer_init(&lexer, test7, 33);
+	lexer_init(&lexer, test7, 7);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
@@ -982,11 +1119,11 @@ test_evaluate(void)
 	assert(res->i == 10);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
-	assert(variables_map_get(vmap, &x)->i == 10);
+	assert((*variables_map_get(vmap, &x))->i == 10);
 
-	char*		test8	= "x + 10";
+	char*	test8 = "x + 10";
 
-	lexer_init(&lexer, test8, 33);
+	lexer_init(&lexer, test8, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
@@ -996,9 +1133,9 @@ test_evaluate(void)
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
-	char*		test9	= "10 + x";
+	char*	test9 = "10 + x";
 
-	lexer_init(&lexer, test9, 33);
+	lexer_init(&lexer, test9, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
@@ -1011,7 +1148,7 @@ test_evaluate(void)
 	char*	test10	= "5 :: y";
 	token_t	y	= { TK_ID, test10 + 5, 1, 1 };
 
-	lexer_init(&lexer, test10, 33);
+	lexer_init(&lexer, test10, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
@@ -1020,11 +1157,11 @@ test_evaluate(void)
 	assert(res->i == 5);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
-	assert(variables_map_get(vmap, &y)->i == 5);
+	assert((*variables_map_get(vmap, &y))->i == 5);
 
-	char*	test11	= "x + y";
+	char*	test11 = "x + y";
 
-	lexer_init(&lexer, test11, 33);
+	lexer_init(&lexer, test11, 5);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
@@ -1035,6 +1172,115 @@ test_evaluate(void)
 	assert(res->oom == OOM_NONE);
 
 	arena_release(arena);
+}
+
+static void
+test_evaluate_list(void)
+{
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+	lexer_t		lexer;
+	ast_node_t*	tree	= 0;
+	return_value_t*	res	= 0;
+	
+	char*	test1	= "1, 2, 3";
+
+	lexer_init(&lexer, test1, 7);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+
+	assert(res->type == RET_INT);
+	assert(res->i == 1);
+	assert(res->unit == U_NONE);
+	assert(res->oom == OOM_NONE);
+
+	assert(res->next);
+	assert(res->next->type == RET_INT);
+	assert(res->next->i == 2);
+	assert(res->next->unit == U_NONE);
+	assert(res->next->oom == OOM_NONE);
+
+	assert(res->next->next);
+	assert(res->next->next->type == RET_INT);
+	assert(res->next->next->i == 3);
+	assert(res->next->next->unit == U_NONE);
+	assert(res->next->next->oom == OOM_NONE);
+
+	char*	test2	= "x :: (1, 2, 3)";
+	token_t	x	= { TK_ID, test2, 1, 1 };
+
+	lexer_init(&lexer, test2, 14);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+
+	assert(res->type == RET_INT);
+	assert(res->i == 1);
+	assert(res->unit == U_NONE);
+	assert(res->oom == OOM_NONE);
+
+	assert(res->next);
+	assert(res->next->type == RET_INT);
+	assert(res->next->i == 2);
+	assert(res->next->unit == U_NONE);
+	assert(res->next->oom == OOM_NONE);
+
+	assert(res->next->next);
+	assert(res->next->next->type == RET_INT);
+	assert(res->next->next->i == 3);
+	assert(res->next->next->unit == U_NONE);
+	assert(res->next->next->oom == OOM_NONE);
+	
+	assert(res->next->next->next == 0);
+	
+	return_value_t**	val = variables_map_get(vmap, &x);
+	assert((*val)->i == 1);
+
+	assert((*val)->type == RET_INT);
+	assert((*val)->i == 1);
+	assert((*val)->unit == U_NONE);
+	assert((*val)->oom == OOM_NONE);
+
+	assert((*val)->next);
+	assert((*val)->next != res->next);
+	assert((*val)->next->type == RET_INT);
+	assert((*val)->next->i == 2);
+	assert((*val)->next->unit == U_NONE);
+	assert((*val)->next->oom == OOM_NONE);
+
+	assert((*val)->next->next != res->next->next);
+	assert((*val)->next->next);
+	assert((*val)->next->next->type == RET_INT);
+	assert((*val)->next->next->i == 3);
+	assert((*val)->next->next->unit == U_NONE);
+	assert((*val)->next->next->oom == OOM_NONE);
+
+	assert((*val)->next->next->next == 0);
+
+	char*	test3	= "x(1)";
+
+	lexer_init(&lexer, test3, 4);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+
+	assert(res->type == RET_INT);
+	assert(res->i == 2);
+	assert(res->unit == U_NONE);
+	assert(res->oom == OOM_NONE);
+	assert(res->next == 0);
+
+	arena_release(arena);
+}
+
+void
+test_evaluate(void)
+{
+	test_evaluate_base();
+	test_evaluate_units_oom();
+	test_evaluate_binding();
+	test_evaluate_list();
 }
 
 #endif // TESTER

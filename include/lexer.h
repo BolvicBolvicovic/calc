@@ -20,6 +20,7 @@ enum __attribute__((mode(SI))) symbol_t
 	TK_MUL,
 	TK_POW,
 	TK_BIND,
+	TK_LIST,
 
 	// Delimiters
 	TK_LP,

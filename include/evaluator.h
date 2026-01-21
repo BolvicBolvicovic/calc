@@ -58,11 +58,12 @@ struct return_value_t
 	};
 	unit_t			unit;
 	order_of_magnetude_t	oom;
-	token_t*	token;
+	token_t*		token;
+	return_value_t*		next;
 };
 
-SWISSMAP_DECLARE(variables_map, token_t*, return_value_t)
-SWISSMAP_DECLARE_FUNCTIONS(variables_map, token_t*, return_value_t)
+SWISSMAP_DECLARE(variables_map, token_t*, return_value_t*)
+SWISSMAP_DECLARE_FUNCTIONS(variables_map, token_t*, return_value_t*)
 
 return_value_t*	evaluate(arena_t*, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
 void		evaluator_print_res(return_value_t* res);

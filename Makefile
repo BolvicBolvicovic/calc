@@ -16,7 +16,7 @@ $(BIN): $(SRCS)
 	$(CC) $(CFLAGS) $(INC) main.c $^ $(LFLAGS) -o $(BIN)
 
 $(TESTER): $(SRCS)
-	$(CC) $(CFLAGS) -DTESTER $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
+	$(CC) -fsanitize=address $(CFLAGS) -DTESTER $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
 
 clean:
 	rm -rf $(BIN)
