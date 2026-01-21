@@ -33,9 +33,12 @@ main()
 		tree	= parser_parse_expression(arena_loop, &lexer, 0);
 		res	= evaluate(arena_loop, tree, arena_vmap, vmap);
 		
-		printf("> \e[3m");
-		evaluator_print_res(res);
-		printf("\e[0m");
+		if (res)
+		{
+			printf("> \e[3m");
+			evaluator_print_res(res);
+			printf("\e[0m");
+		}
 
 		free(line);
 		arena_clear(arena_loop);

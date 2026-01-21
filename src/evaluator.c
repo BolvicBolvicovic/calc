@@ -516,6 +516,15 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				else
 					goto def;
 				break;
+			case 5:
+				if (memcmp("clear", node->token.start, 5) == 0)
+				{
+					printf("\033[2J\033[H");
+					return 0;
+				}
+				else
+					goto def;
+				break;
 			// Variables
 			default:
 			def:
