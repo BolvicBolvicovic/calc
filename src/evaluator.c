@@ -406,6 +406,7 @@ evaluator_polynom_one(return_value_t* v)
 	v->f	= b / a;
 	v->next	= 0;
 	v->type = RET_FLOAT;
+	v->unit	= U_NONE;
 	
 	return_value_convert_oom(v, m);
 }
@@ -441,6 +442,7 @@ evaluator_polynom_two(arena_t* arena, return_value_t* v)
 	v->type		= RET_FLOAT;
 	v->unit		= U_NONE;
 	v->next		= ARENA_PUSH_STRUCT(arena, return_value_t);
+
 	v->next->f	= x2;
 	v->next->type	= RET_FLOAT;
 	v->next->oom	= OOM_BASE;

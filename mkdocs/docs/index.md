@@ -16,17 +16,19 @@ List of all features that I thought about and that have been validated or not, i
 - binary logic
 - use fixed number instead of float
 - make constant part of metadata OR use as a float/int
-- complex numbers
 - handle squared and square roots of units
 - improve user's error system
-- variables assignment: x := 5
-- lists dimensions (i.e. dim1: (5, 6, 4, 5), dim2: dim((5, 5, 8, 6), 2))
+- variables assignment: `x := 5`
+- lists dimensions (i.e. dim1: `(5, 6, 4, 5)`, dim2: `dim((5, 5, 8, 6), 2)`)
 - equations with the `=` operator
 - list operations
+- helper with short documentation
+- new_session helper that clears the variables map
 
 ### Validated
 
 - square root
+- complex numbers operators & declaration
 
 ### Refused
 
@@ -34,7 +36,8 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- built-ins: polynomials 1, 2, 3, 4
+- complex numbers
+- built-ins:  linear, quadratic, cubic and quartic polynomials
 
 ### Finished
 

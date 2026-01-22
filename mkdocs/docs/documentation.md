@@ -2,15 +2,17 @@
 
 A calculator for my journey as an embedded system engineer.
 
-## Types
+## Data Types
 
-At the moment, there are two types: floats and integers.
-When using a float in an expression, the result of that expression is automatically casted to a float.
+There are three data types: floats, integers and complex.
+When both integers and floats are used in an expression, all integers are casted to a float.
+
+At the moment, complex are only returned when solving cubic and quartic equations. They cannot be declared and cannot be used with any math operators.
 
 There is no intention of extending the type system concerning the data itself.
 I do not want to build structures as data-layouts in the interpreter as it is a tool for math and not for programming.
 
-However, the physics unit system enforces some kind of meta-type upon variables.
+However, the physics unit system enforces some kind of meta-type upon variables for certain operations.
 But it is a finite set of meta-types.
 
 ## Simple expressions
@@ -169,7 +171,7 @@ calc> milli(watt(5)) :: x
 > 5 milli watt
 ```
 
-## Lists *(WIP)*
+## Lists
 
 The list is the container of the calc interpreter. A list is a list of values (floats or integer).
 At the moment, they can only be used as arguments for built-ins.
@@ -196,13 +198,41 @@ calc> my_list(10)
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
 
-## Equations *(WIP)*
+### List operations *(WIP)*
 
 // TODO
 
-### Equation operator `=`
+## Math Built-ins
 
-// TODO
+### Polynomials
+
+#### `polynom_one(a, b)`
+
+`polynom_one` takes the two first elements of a list and solves the linear equation $ax + b = 0$.
+The returned value is a float.
+The smallest order of magnitude is chosen between `a` and `b`.
+The unit is undefined.
+
+#### `polynom_two(a, b, c)`
+
+`polynom_two` takes the three first elements of a list and solves the quadratic equation $ax^2 + bx + c = 0$.
+The returned value is a list with the 2 roots as floats.
+The smallest order of magnitude is chosen between `a`, `b` and `c`.
+The unit of the roots is undefined.
+
+#### `polynom_three(a, b, c, d)`
+
+`polynom_three` takes the four first elements of a list and solves the cubic equation $ax^3 + bx^2 + cx + d = 0$.
+The returned value is a list with the 3 roots as floats and/or complex.
+The order of magnitude is the base magnitude.
+The unit of the roots is undefined.
+
+#### `polynom_four(a, b, c, d, e)`
+
+`polynom_four` takes the five first elements of a list and solves the quartic equation $ax^4 + bx^3 + cx^2 + dx + e = 0$.
+The returned value is a list with the 4 roots as floats and/or complex.
+The order of magnitude is the base magnitude.
+The unit of the roots is undefined.
 
 ## Other Built-Ins
 
