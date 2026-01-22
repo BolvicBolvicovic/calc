@@ -21,11 +21,12 @@ List of all features that I thought about and that have been validated or not, i
 - improve user's error system
 - variables assignment: x := 5
 - lists dimensions (i.e. dim1: (5, 6, 4, 5), dim2: dim((5, 5, 8, 6), 2))
-- square root
+- equations with the `=` operator
+- list operations
 
 ### Validated
 
-- equations with the `=` operator
+- square root
 
 ### Refused
 
@@ -33,7 +34,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- lists with the `,` operator
+- built-ins: polynomials 1, 2, 3, 4
 
 ### Finished
 
@@ -49,6 +50,7 @@ List of all features that I thought about and that have been validated or not, i
 - orders of magnetude
 - constants: `PI`, `E`
 - variables binding operator: `literal_expr :: expr`
+- lists with the `,` operator
 
 ### Spotted issues
 

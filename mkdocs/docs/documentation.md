@@ -28,6 +28,7 @@ But it is a finite set of meta-types.
 ```
 calc> -5 + 5 * 8 / (5 ^ 6)
 ```
+
 **With at least one float value**
 
 ```
@@ -170,12 +171,12 @@ calc> milli(watt(5)) :: x
 
 ## Lists *(WIP)*
 
-Lists is the container of the calc interpreter. A list is a list of values (floats or integer).
-At the moment, they are used as arguments for built-ins.
+The list is the container of the calc interpreter. A list is a list of values (floats or integer).
+At the moment, they can only be used as arguments for built-ins.
 
 Later on, they could be used to declare matrices, to be returned as result of equations and more...
 
-### List operator `,` *(WIP)*
+### List operator `,`
 
 A list is defined with the `,` operator as `(left_expr, right_expr)`.
 
@@ -190,7 +191,7 @@ One can access an element of a list with a 0-based index like so:
 calc> my_list(0)
 > 12
 calc> my_list(10)
-> list index out of bound
+> Error while evaluating expression
 ```
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
@@ -208,6 +209,10 @@ Note that lists are internally linked lists. Accessing an element will be always
 ### `exit`
 
 Quits the calculator.
+
+### `clear`
+
+Clears the terminal.
 
 ### Constants
 

@@ -382,6 +382,85 @@ evaluator_atoi(token_t* token)
 	return res;
 }
 
+static void
+evaluator_polynom_one(return_value_t* v)
+{
+	order_of_magnetude_t	m;
+
+	if (!v->next || v->oom < v->next->oom)
+		m = v->oom;
+	else
+		m = v->next->oom;
+
+	return_value_convert_oom(v, OOM_BASE);
+
+	if (v->next)
+		return_value_convert_oom(v->next, OOM_BASE);
+
+	f64	a = return_value_as_float(v);
+	f64	b = v->next ? -return_value_as_float(v->next) : 0;
+
+	v->f	= b / a;
+	v->next	= 0;
+	v->type = RET_FLOAT;
+	
+	return_value_convert_oom(v, m);
+}
+
+static void
+evaluator_polynom_two(arena_t* arena, return_value_t* v)
+{
+	return_value_t*		a	= v;
+	return_value_t*		b	= v ? v->next : 0;
+	return_value_t*		c	= b ? b->next : 0;
+	order_of_magnetude_t	ma	= a ? a->oom : OOM_BASE;
+	order_of_magnetude_t	mb	= b ? b->oom : OOM_BASE;
+	order_of_magnetude_t	mc	= c ? c->oom : OOM_BASE;
+	order_of_magnetude_t	min	= ((ma ^ mb) & -(ma > mb)) ^ ma;
+
+	min = ((min ^ mc) & -(min > mc)) ^ min;
+
+	return_value_convert_oom(a, OOM_BASE);
+
+	if (b)
+		return_value_convert_oom(b, OOM_BASE);
+
+	if (c)
+		return_value_convert_oom(b, OOM_BASE);
+
+	f64	af = a ? return_value_as_float(a) : 0;
+	f64	bf = b ? return_value_as_float(b) : 0;
+	f64	cf = c ? return_value_as_float(c) : 0;
+	f64	x1 = (-bf + sqrt(pow(bf, 2) - 4 * af * cf)) / (2 * af);
+	f64	x2 = (-bf - sqrt(pow(bf, 2) - 4 * af * cf)) / (2 * af);
+
+	v->f		= x1;
+	v->type		= RET_FLOAT;
+	v->unit		= U_NONE;
+	v->next		= ARENA_PUSH_STRUCT(arena, return_value_t);
+	v->next->f	= x2;
+	v->next->type	= RET_FLOAT;
+	v->next->oom	= OOM_BASE;
+	v->next->unit	= U_NONE;
+	v->next->token	= 0;
+	v->next->next	= 0;
+
+	return_value_convert_oom(v, min);
+	return_value_convert_oom(v->next, min);
+}
+	
+static void
+evaluator_polynom_three(return_value_t* v)
+{
+	(void)v;
+}
+
+static void
+evaluator_polynom_four(return_value_t* v)
+{
+	(void)v;
+}
+
 return_value_t*
 evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
 {
@@ -437,6 +516,26 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case 6:
 				if (memcmp("ampere", node->token.start, 6) == 0)
 					return_value_convert_unit(ret, U_AMPERE);
+				else
+					goto def1;
+				break;
+			case 11:
+				if (memcmp("polynom_one", node->token.start, 11) == 0)
+					evaluator_polynom_one(ret);
+				else if (memcmp("polynom_two", node->token.start, 11) == 0)
+					evaluator_polynom_two(arena, ret);
+				else
+					goto def1;
+				break;
+			case 12:
+				if (memcmp("polynom_four", node->token.start, 12) == 0)
+					evaluator_polynom_four(ret);
+				else
+					goto def1;
+				break;
+			case 13:
+				if (memcmp("polynom_three", node->token.start, 13) == 0)
+					evaluator_polynom_three(ret);
 				else
 					goto def1;
 				break;

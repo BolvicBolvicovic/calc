@@ -50,12 +50,12 @@ enum order_of_magnetude_t
 typedef struct return_value_t	return_value_t;
 struct return_value_t
 {
-	return_t	type;
 	union
 	{
 		f64	f;
 		s64	i;
 	};
+	return_t		type;
 	unit_t			unit;
 	order_of_magnetude_t	oom;
 	token_t*		token;
