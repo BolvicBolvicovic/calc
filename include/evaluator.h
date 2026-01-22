@@ -4,12 +4,14 @@
 #include <parser.h>
 #include <swissmap.h>
 #include <arena.h>
+#include <complex.h>
 
 typedef enum return_t	return_t;
 enum return_t
 {
 	RET_INT,
 	RET_FLOAT,
+	RET_COMPLEX,
 	RET_BINDABLE,
 	RET_ERR,
 };
@@ -54,6 +56,7 @@ struct return_value_t
 	{
 		f64	f;
 		s64	i;
+		complex	c;
 	};
 	return_t		type;
 	unit_t			unit;

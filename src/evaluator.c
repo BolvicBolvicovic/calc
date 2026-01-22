@@ -60,6 +60,9 @@ evaluator_print_res_val(return_value_t* res)
 	case RET_FLOAT:
 		printf("%g", res->f);
 		break;
+	case RET_COMPLEX:
+		printf("%g + %gi", creal(res->c), cimag(res->c));
+		break;
 	case RET_ERR:
 		printf("Error while evaluating expression");
 		return;
@@ -426,7 +429,7 @@ evaluator_polynom_two(arena_t* arena, return_value_t* v)
 		return_value_convert_oom(b, OOM_BASE);
 
 	if (c)
-		return_value_convert_oom(b, OOM_BASE);
+		return_value_convert_oom(c, OOM_BASE);
 
 	f64	af = a ? return_value_as_float(a) : 0;
 	f64	bf = b ? return_value_as_float(b) : 0;
@@ -450,15 +453,196 @@ evaluator_polynom_two(arena_t* arena, return_value_t* v)
 }
 	
 static void
-evaluator_polynom_three(return_value_t* v)
+evaluator_polynom_three(arena_t* arena, return_value_t* val)
 {
-	(void)v;
+	return_value_t*		a	= val;
+	return_value_t*		b	= a ? a->next : 0;
+	return_value_t*		c	= b ? b->next : 0;
+	return_value_t*		d	= c ? c->next : 0;
+
+	return_value_convert_oom(a, OOM_BASE);
+
+	if (b)
+		return_value_convert_oom(b, OOM_BASE);
+
+	if (c)
+		return_value_convert_oom(c, OOM_BASE);
+	
+	if (d)
+		return_value_convert_oom(d, OOM_BASE);
+	
+	f64	af = a ? return_value_as_float(a) : 0;
+	f64	bf = b ? return_value_as_float(b) : 0;
+	f64	cf = c ? return_value_as_float(c) : 0;
+	f64	df = d ? return_value_as_float(d) : 0;
+
+	if (af == 0)
+	{
+		val->type = RET_ERR;
+		return;
+	}
+
+	f64	p 	= (3 * af * cf - pow(bf, 2)) / (3 * pow(af, 2));
+	f64	q 	= (2 * pow(bf, 3) - 9 * af * bf * cf + 27 * pow(af, 2) * df) / (27 * pow(af, 3));
+
+	double complex	delta	= pow(q / 2, 2) + pow(p / 3, 3);
+	double complex	u3	= -q / 2 + csqrt(delta);
+	f64		r	= cabs(u3);
+	f64		theta	= carg(u3);
+	double complex	u	= cbrt(r) * cexp(I * theta / 3);
+	double complex	v	= -p / (3 * u);
+	double complex	w	= cexp(2 * M_PI * I / 3);
+	double complex	y1	= u + v;
+	double complex	y2	= w * u + cpow(w, 2) * v;
+	double complex	y3	= cpow(w, 2) * u + w * v;
+
+	double complex	x1	= y1 - bf / (af * 3);
+	double complex	x2	= y2 - bf / (af * 3);
+	double complex	x3	= y3 - bf / (af * 3);
+
+	f64	eps = 0.00000000000001;
+
+	if (cimag(x1) < eps && cimag(x1) > -eps)
+	{
+		val->f		= x1;
+		val->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->c		= x1;
+		val->type	= RET_COMPLEX;
+	}
+	val->unit	= U_NONE;
+	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
+
+	if (cimag(x2) < eps && cimag(x2) > -eps)
+	{
+		val->next->f	= x2;
+		val->next->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->next->c	= x2;
+		val->next->type	= RET_COMPLEX;
+	}
+	val->next->oom	= OOM_BASE;
+	val->next->unit	= U_NONE;
+	val->next->token= 0;
+	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
+
+	if (cimag(x3) < eps && cimag(x3) > -eps)
+	{
+		val->next->next->f	= x3;
+		val->next->next->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->next->next->c	= x3;
+		val->next->next->type	= RET_COMPLEX;
+	}
+	val->next->next->oom	= OOM_BASE;
+	val->next->next->unit	= U_NONE;
+	val->next->next->token	= 0;
+	val->next->next->next	= 0;
 }
 
 static void
-evaluator_polynom_four(return_value_t* v)
+evaluator_polynom_four(arena_t* arena, return_value_t* val)
 {
-	(void)v;
+	return_value_t*		a	= val;
+	return_value_t*		b	= a ? a->next : 0;
+	return_value_t*		c	= b ? b->next : 0;
+	return_value_t*		d	= c ? c->next : 0;
+	return_value_t*		e	= d ? c->next : 0;
+
+	return_value_convert_oom(a, OOM_BASE);
+
+	if (b)
+		return_value_convert_oom(b, OOM_BASE);
+
+	if (c)
+		return_value_convert_oom(c, OOM_BASE);
+	
+	if (d)
+		return_value_convert_oom(d, OOM_BASE);
+	
+	if (e)
+		return_value_convert_oom(e, OOM_BASE);
+	
+	f64	af = a ? return_value_as_float(a) : 0;
+	f64	bf = b ? return_value_as_float(b) : 0;
+	f64	cf = c ? return_value_as_float(c) : 0;
+	f64	df = d ? return_value_as_float(d) : 0;
+	f64	ef = e ? return_value_as_float(e) : 0;
+
+	if (af == 0)
+	{
+		val->type = RET_ERR;
+		return;
+	}
+
+	f64	p 	= (3 * af * cf - pow(bf, 2)) / (3 * pow(af, 2));
+	f64	q 	= (2 * pow(bf, 3) - 9 * af * bf * cf + 27 * pow(af, 2) * df) / (27 * pow(af, 3));
+
+	double complex	delta	= pow(q / 2, 2) + pow(p / 3, 3);
+	double complex	u3	= -q / 2 + csqrt(delta);
+	f64		r	= cabs(u3);
+	f64		theta	= carg(u3);
+	double complex	u	= cbrt(r) * cexp(I * theta / 3);
+	double complex	v	= -p / (3 * u);
+	double complex	w	= cexp(2 * M_PI * I / 3);
+	double complex	y1	= u + v;
+	double complex	y2	= w * u + cpow(w, 2) * v;
+	double complex	y3	= cpow(w, 2) * u + w * v;
+
+	double complex	x1	= y1 - bf / (af * 3);
+	double complex	x2	= y2 - bf / (af * 3);
+	double complex	x3	= y3 - bf / (af * 3);
+
+	f64	eps = 0.00000000000001;
+
+	if (cimag(x1) < eps && cimag(x1) > -eps)
+	{
+		val->f		= x1;
+		val->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->c		= x1;
+		val->type	= RET_COMPLEX;
+	}
+	val->unit	= U_NONE;
+	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
+
+	if (cimag(x2) < eps && cimag(x2) > -eps)
+	{
+		val->next->f	= x2;
+		val->next->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->next->c	= x2;
+		val->next->type	= RET_COMPLEX;
+	}
+	val->next->oom	= OOM_BASE;
+	val->next->unit	= U_NONE;
+	val->next->token= 0;
+	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
+
+	if (cimag(x3) < eps && cimag(x3) > -eps)
+	{
+		val->next->next->f	= x3;
+		val->next->next->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->next->next->c	= x3;
+		val->next->next->type	= RET_COMPLEX;
+	}
+	val->next->next->oom	= OOM_BASE;
+	val->next->next->unit	= U_NONE;
+	val->next->next->token	= 0;
+	val->next->next->next	= 0;
 }
 
 return_value_t*
@@ -529,13 +713,13 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				break;
 			case 12:
 				if (memcmp("polynom_four", node->token.start, 12) == 0)
-					evaluator_polynom_four(ret);
+					evaluator_polynom_four(arena, ret);
 				else
 					goto def1;
 				break;
 			case 13:
 				if (memcmp("polynom_three", node->token.start, 13) == 0)
-					evaluator_polynom_three(ret);
+					evaluator_polynom_three(arena, ret);
 				else
 					goto def1;
 				break;
