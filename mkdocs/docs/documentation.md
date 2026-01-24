@@ -234,6 +234,27 @@ The returned value is a list with the 4 roots as floats and/or complex.
 The order of magnitude is the base magnitude.
 The unit of the roots is undefined.
 
+### Trigonometry
+
+They all return a float between 1 and -1.
+
+- `cos(a)`
+- `arccos(a)`
+- `tan(a)`
+- `arctan(a)`
+- `sin(a)`
+- `arcsin(a)`
+
+### Others
+
+#### `sqrt(a)`
+
+Square root of a number. Returns a float.
+
+#### `cbrt(a)`
+
+Cube root of a number. Returns a float.
+
 ## Other Built-Ins
 
 ### `exit`

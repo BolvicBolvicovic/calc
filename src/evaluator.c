@@ -7,8 +7,11 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+#define EPS	1e-13
+
 static s32	evaluator_memcmp(token_t* t1, token_t* t2);
 static u64	evaluator_hash(token_t* t);
+static void	return_value_cast_to_float(return_value_t* v);
 
 SWISSMAP_DEFINE_FUNCTIONS(variables_map, token_t*, return_value_t*, evaluator_hash, evaluator_memcmp)
 
@@ -47,6 +50,66 @@ evaluator_hash(token_t* t)
 		hash = ((hash << 5) + hash) + t->start[i];
 
 	return hash;
+}
+
+// START TRIGONOMETRY
+
+static inline void
+evaluator_cos(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = cos(val->f);
+}
+
+static inline void
+evaluator_sin(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = sin(val->f);
+}
+
+static inline void
+evaluator_tan(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = tan(val->f);
+}
+
+static inline void
+evaluator_arccos(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = acos(val->f);
+}
+
+static inline void
+evaluator_arcsin(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = asin(val->f);
+}
+
+static inline void
+evaluator_arctan(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = atan(val->f);
+}
+
+// END TRIGONOMETRY
+
+static inline void
+evaluator_sqrt(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = sqrt(val->f);
+}
+
+static inline void
+evaluator_cbrt(return_value_t* val)
+{
+	return_value_cast_to_float(val);
+	val->f = cbrt(val->f);
 }
 
 static inline void
@@ -118,11 +181,15 @@ evaluator_print_res_val(return_value_t* res)
 	}
 }
 
+// START CAST & CONV RET_VAL
+
 static inline f64
 return_value_as_float(return_value_t* v)
 {
 	if (v->type == RET_FLOAT)
 		return v->f;
+	else if (v->type == RET_COMPLEX)
+		return creal(v->c);
 
 	return (f64)v->i;
 }
@@ -132,6 +199,8 @@ return_value_as_int(return_value_t* v)
 {
 	if (v->type == RET_FLOAT)
 		return (s64)v->f;
+	else if (v->type == RET_COMPLEX)
+		return (s64)creal(v->c);
 
 	return v->i;
 }
@@ -140,10 +209,11 @@ static inline void
 return_value_cast_to_float(return_value_t* v)
 {
 	if (v->type == RET_INT)
-	{
-		v->type = RET_FLOAT;
 		v->f = (f64)v->i;
-	}
+	else if (v->type == RET_COMPLEX)
+		v->f = creal(v->c);
+
+	v->type = RET_FLOAT;
 }
 
 static inline void
@@ -244,7 +314,7 @@ return_value_convert_to_centi(return_value_t* v)
 		v->f *= 10;
 		break;
 	case OOM_MILLI:
-		v->f *= 100;
+		v->f *= 0.1;
 		break;
 	case OOM_MICRO:
 		v->f *= 0.0001;
@@ -349,6 +419,8 @@ return_value_convert_unit(return_value_t* v, unit_t u)
 		v->unit = U_ERR;
 }
 
+// END CAST & CONV RET_VAL
+
 static f64
 evaluator_atof(token_t* token)
 {
@@ -380,10 +452,12 @@ evaluator_atoi(token_t* token)
 	s64	res = 0;
 
 	for (u32 i = 0; i < token->length; i++)
-		res = res * 10.0 + (token->start[i] - '0');
+		res = res * 10 + (token->start[i] - '0');
 
 	return res;
 }
+
+// START POLYNOMIALS
 
 static void
 evaluator_polynom_one(return_value_t* v)
@@ -489,8 +563,8 @@ evaluator_polynom_three(arena_t* arena, return_value_t* val)
 
 	double complex	delta	= pow(q / 2, 2) + pow(p / 3, 3);
 	double complex	u3	= -q / 2 + csqrt(delta);
-	f64		r	= cabs(u3);
-	f64		theta	= carg(u3);
+	double complex	r	= cabs(u3);
+	double complex	theta	= carg(u3);
 	double complex	u	= cbrt(r) * cexp(I * theta / 3);
 	double complex	v	= -p / (3 * u);
 	double complex	w	= cexp(2 * M_PI * I / 3);
@@ -502,9 +576,7 @@ evaluator_polynom_three(arena_t* arena, return_value_t* val)
 	double complex	x2	= y2 - bf / (af * 3);
 	double complex	x3	= y3 - bf / (af * 3);
 
-	f64	eps = 0.00000000000001;
-
-	if (cimag(x1) < eps && cimag(x1) > -eps)
+	if (fabs(cimag(x1)) < EPS)
 	{
 		val->f		= x1;
 		val->type	= RET_FLOAT;
@@ -515,9 +587,10 @@ evaluator_polynom_three(arena_t* arena, return_value_t* val)
 		val->type	= RET_COMPLEX;
 	}
 	val->unit	= U_NONE;
+	val->oom	= OOM_BASE;
 	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
-	if (cimag(x2) < eps && cimag(x2) > -eps)
+	if (fabs(cimag(x2)) < EPS)
 	{
 		val->next->f	= x2;
 		val->next->type	= RET_FLOAT;
@@ -532,7 +605,7 @@ evaluator_polynom_three(arena_t* arena, return_value_t* val)
 	val->next->token= 0;
 	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
-	if (cimag(x3) < eps && cimag(x3) > -eps)
+	if (fabs(cimag(x3)) < EPS)
 	{
 		val->next->next->f	= x3;
 		val->next->next->type	= RET_FLOAT;
@@ -548,34 +621,35 @@ evaluator_polynom_three(arena_t* arena, return_value_t* val)
 	val->next->next->next	= 0;
 }
 
+// Credit for the algorithm: https://github.com/sasamil/Quartic/blob/master/quartic.cpp
 static void
 evaluator_polynom_four(arena_t* arena, return_value_t* val)
 {
-	return_value_t*		a	= val;
-	return_value_t*		b	= a ? a->next : 0;
-	return_value_t*		c	= b ? b->next : 0;
-	return_value_t*		d	= c ? c->next : 0;
-	return_value_t*		e	= d ? c->next : 0;
+	return_value_t*		aval	= val;
+	return_value_t*		bval	= aval ? aval->next : 0;
+	return_value_t*		cval	= bval ? bval->next : 0;
+	return_value_t*		dval	= cval ? cval->next : 0;
+	return_value_t*		eval	= dval ? dval->next : 0;
 
-	return_value_convert_oom(a, OOM_BASE);
+	return_value_convert_oom(aval, OOM_BASE);
 
-	if (b)
-		return_value_convert_oom(b, OOM_BASE);
+	if (bval)
+		return_value_convert_oom(bval, OOM_BASE);
 
-	if (c)
-		return_value_convert_oom(c, OOM_BASE);
+	if (cval)
+		return_value_convert_oom(cval, OOM_BASE);
 	
-	if (d)
-		return_value_convert_oom(d, OOM_BASE);
+	if (dval)
+		return_value_convert_oom(dval, OOM_BASE);
 	
-	if (e)
-		return_value_convert_oom(e, OOM_BASE);
+	if (eval)
+		return_value_convert_oom(eval, OOM_BASE);
 	
-	f64	af = a ? return_value_as_float(a) : 0;
-	f64	bf = b ? return_value_as_float(b) : 0;
-	f64	cf = c ? return_value_as_float(c) : 0;
-	f64	df = d ? return_value_as_float(d) : 0;
-	f64	ef = e ? return_value_as_float(e) : 0;
+	f64	af = aval ? return_value_as_float(aval) : 0;
+	f64	bf = bval ? return_value_as_float(bval) : 0;
+	f64	cf = cval ? return_value_as_float(cval) : 0;
+	f64	df = dval ? return_value_as_float(dval) : 0;
+	f64	ef = eval ? return_value_as_float(eval) : 0;
 
 	if (af == 0)
 	{
@@ -583,27 +657,140 @@ evaluator_polynom_four(arena_t* arena, return_value_t* val)
 		return;
 	}
 
-	f64	p 	= (3 * af * cf - pow(bf, 2)) / (3 * pow(af, 2));
-	f64	q 	= (2 * pow(bf, 3) - 9 * af * bf * cf + 27 * pow(af, 2) * df) / (27 * pow(af, 3));
+	// Solve quartic equation x^4 + a*x^3 + b*x^2 + c*x + d
+	// with a, b, c and d defined bellow:
+	f64	a = bf / af;
+	f64	b = cf / af;
+	f64	c = df / af;
+	f64	d = ef / af;
 
-	double complex	delta	= pow(q / 2, 2) + pow(p / 3, 3);
-	double complex	u3	= -q / 2 + csqrt(delta);
-	f64		r	= cabs(u3);
-	f64		theta	= carg(u3);
-	double complex	u	= cbrt(r) * cexp(I * theta / 3);
-	double complex	v	= -p / (3 * u);
-	double complex	w	= cexp(2 * M_PI * I / 3);
-	double complex	y1	= u + v;
-	double complex	y2	= w * u + cpow(w, 2) * v;
-	double complex	y3	= cpow(w, 2) * u + w * v;
+	// Cubic resolvent
+	// y^3 − b*y^2 + (ac−4d)*y − a^2*d−c^2+4*b*d = 0
+	f64	a3 = -b;
+	f64	b3 = a*c - 4.0*d;
+	f64	c3 = -a*a*d - c*c + 4.0*b*d;
 
-	double complex	x1	= y1 - bf / (af * 3);
-	double complex	x2	= y2 - bf / (af * 3);
-	double complex	x3	= y3 - bf / (af * 3);
+	f64	a2= a3*a3;
+	f64	q = (a2 - 3*b3)/9;
+	f64	r = (a3*(2*a2 - 9*b3) + 27*c3)/54;
+	f64	r2= r*r;
+	f64	q3= q*q*q;
+	// Note: rr stands for real roots and is the number of real roots found.
+	// z0, z1, z2 are the roots.
+	f64	rr,z0,z1,z2;
 
-	f64	eps = 0.00000000000001;
+	if (r2 < q3)
+	{
+		f64	t = r/sqrt(q3);
+		
+		if (t < -1) t = -1;
+		if (t > 1) t = 1;
 
-	if (cimag(x1) < eps && cimag(x1) > -eps)
+		t = acos(t);
+		a3/= 3;
+		q = -2*sqrt(q);
+		z0= q*cos(t/3) - a3;
+		z1= q*cos((t + M_PI*2)/3) - a3;
+		z2= q*cos((t - M_PI*2)/3) - a3;
+
+		rr = 3;
+	}
+	else
+	{
+		f64	A = -pow(fabs(r) + sqrt(r2 - q3), 1.0/3);
+
+		if (r < 0) A = -A;
+
+		f64	B = A == 0 ? 0 : q/A;
+	
+		a3/= 3;
+		z0= (A + B) - a3;
+		z1= -0.5*(A + B) - a3;
+		z2= 0.5*sqrt(3.0)*(A - B);
+
+		if (fabs(z2) < EPS)
+		{
+			z2 = z1;
+			rr = 2;
+		}
+		else
+			rr = 1;
+	}
+
+	// THE ESSENCE - choosing Y with maximal absolute value !
+	f64	y = z0;
+
+	if (rr != 1)
+	{
+		if (fabs(z1) > fabs(y)) y = z1;
+		if (fabs(z2) > fabs(y)) y = z2;
+	}
+
+	// h1+h2 = y && h1*h2 = d  <=>  h^2 -y*h + d = 0    (h == q)
+	f64	D = y*y - 4*d;
+	f64	q1, q2, p1, p2, sqD;
+
+	if (fabs(D) < EPS)
+	{
+		q1= q2 = y*0.5;
+		D = q*q - 4*(b - y);
+
+		// g1+g2 = a && g1+g2 = b-y   <=>   g^2 - a*g + b-y = 0    (p == g)
+		if (fabs(D) < EPS)
+			p1 = p2 = a*0.5;
+		else
+		{
+			sqD= sqrt(D);
+			p1 = (a + sqD)*0.5;
+			p2 = (a - sqD)*0.5;
+		}
+	}
+	else
+	{
+		sqD= sqrt(D);
+		q1 = (y + sqD)*0.5;
+		q2 = (y - sqD)*0.5;
+
+		// g1+g2 = a && g1*h2 + g2*h1 = c       (h == q && g == p )  Krammer
+		p1 = (a*q1 - c)/(q1 - q2);
+		p2 = (c - a*q2)/(q1 - q2);
+	}
+
+
+	double complex	x1, x2, x3, x4;
+	x1 = x2 = x3 = x4 = NAN;
+
+	// solving quadratic eq. - x^2 + p1*x + q1 = 0
+	D = p1*p1 - 4*q1;
+
+	if (D < 0.0)
+	{
+		x1 = CMPLX(-p1*0.5, sqrt(-D)*0.5);
+		x2 = x1*(-I);
+	}
+	else
+	{
+		sqD= sqrt(D);
+		x1 = (-p1 + sqD)*0.5;
+		x2 = (-p1 - sqD)*0.5;
+	}
+	
+	// solving quadratic eq. - x^2 + p2*x + q2 = 0
+	D = p2*p2 - 4*q2;
+	
+	if (D < 0.0)
+	{
+		x3 = CMPLX(-p2*0.5, sqrt(-D)*0.5);
+		x4 = x3*(-I);
+	}
+	else
+	{
+		sqD= sqrt(D);
+		x3 = (-p2 + sqD)*0.5;
+		x4 = (-p2 - sqD)*0.5;
+	}
+
+	if (fabs(cimag(x1)) < EPS)
 	{
 		val->f		= x1;
 		val->type	= RET_FLOAT;
@@ -613,10 +800,11 @@ evaluator_polynom_four(arena_t* arena, return_value_t* val)
 		val->c		= x1;
 		val->type	= RET_COMPLEX;
 	}
+	val->oom	= OOM_BASE;
 	val->unit	= U_NONE;
 	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
-	if (cimag(x2) < eps && cimag(x2) > -eps)
+	if (fabs(cimag(x2)) < EPS)
 	{
 		val->next->f	= x2;
 		val->next->type	= RET_FLOAT;
@@ -631,7 +819,7 @@ evaluator_polynom_four(arena_t* arena, return_value_t* val)
 	val->next->token= 0;
 	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
-	if (cimag(x3) < eps && cimag(x3) > -eps)
+	if (fabs(cimag(x3)) < EPS)
 	{
 		val->next->next->f	= x3;
 		val->next->next->type	= RET_FLOAT;
@@ -644,8 +832,25 @@ evaluator_polynom_four(arena_t* arena, return_value_t* val)
 	val->next->next->oom	= OOM_BASE;
 	val->next->next->unit	= U_NONE;
 	val->next->next->token	= 0;
-	val->next->next->next	= 0;
+	val->next->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
+	
+	if (fabs(cimag(x4)) < EPS)
+	{
+		val->next->next->next->f	= x4;
+		val->next->next->next->type	= RET_FLOAT;
+	}
+	else
+	{
+		val->next->next->next->c	= x4;
+		val->next->next->next->type	= RET_COMPLEX;
+	}
+	val->next->next->next->oom	= OOM_BASE;
+	val->next->next->next->unit	= U_NONE;
+	val->next->next->next->token	= 0;
+	val->next->next->next->next	= 0;
 }
+
+// END POLYNOMIALS
 
 return_value_t*
 evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
@@ -674,6 +879,12 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case 3:
 				if (memcmp("ohm", node->token.start, 3) == 0)
 					return_value_convert_unit(ret, U_OHM);
+				else if (memcmp("cos", node->token.start, 3) == 0)
+					evaluator_cos(ret);
+				else if (memcmp("sin", node->token.start, 3) == 0)
+					evaluator_sin(ret);
+				else if (memcmp("tan", node->token.start, 3) == 0)
+					evaluator_tan(ret);
 				else
 					goto def1;
 				break;
@@ -686,6 +897,10 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					return_value_convert_to_nano(ret);
 				else if (memcmp("deci", node->token.start, 4) == 0)
 					return_value_convert_to_deci(ret);
+				else if (memcmp("sqrt", node->token.start, 4) == 0)
+					evaluator_sqrt(ret);
+				else if (memcmp("cbrt", node->token.start, 4) == 0)
+					evaluator_cbrt(ret);
 				else
 					goto def1;
 				break;
@@ -702,6 +917,12 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case 6:
 				if (memcmp("ampere", node->token.start, 6) == 0)
 					return_value_convert_unit(ret, U_AMPERE);
+				else if (memcmp("arccos", node->token.start, 6) == 0)
+					evaluator_arccos(ret);
+				else if (memcmp("arcsin", node->token.start, 6) == 0)
+					evaluator_arcsin(ret);
+				else if (memcmp("arctan", node->token.start, 6) == 0)
+					evaluator_arctan(ret);
 				else
 					goto def1;
 				break;
@@ -1288,14 +1509,13 @@ void
 test_evaluator_atof(void)
 {
 	char*	test	= "256.34";
-	f64	eps	= 0.000001;
 	token_t	tok	=
 	{
 		.start	= test,
 		.length	= 6,
 	};
 
-	assert(evaluator_atof(&tok) >= 256.34 - eps && evaluator_atof(&tok) <= 256.34 + eps);
+	assert(evaluator_atof(&tok) >= 256.34 - EPS && evaluator_atof(&tok) <= 256.34 + EPS);
 }
 
 static void
@@ -1306,7 +1526,6 @@ test_evaluate_base(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
-	f64		eps	= 0.000001;
 
 	char*	test = "-5 - 10.0 * 5";
 
@@ -1316,7 +1535,7 @@ test_evaluate_base(void)
 	res	= evaluate(arena, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
-	assert(res->f >= -55.0 - eps && res->f <= -55.0 + eps);
+	assert(res->f >= -55.0 - EPS && res->f <= -55.0 + EPS);
 	
 	char*	test2 = "-5 - 10.0 * (5 ^ 2)";
 	
@@ -1326,7 +1545,7 @@ test_evaluate_base(void)
 	res	= evaluate(arena, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
-	assert(res->f >= -255.0 - eps && res->f <= -255.0 + eps);
+	assert(res->f >= -255.0 - EPS && res->f <= -255.0 + EPS);
 	
 	arena_release(arena);
 }
@@ -1339,7 +1558,6 @@ test_evaluate_units_oom(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
-	f64		eps	= 0.000001;
 
 	char*	test3 = "ampere(5)";
 	
@@ -1361,7 +1579,7 @@ test_evaluate_units_oom(void)
 	res	= evaluate(arena, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
-	assert(res->f >= 5005.0 - eps && res->f <= 5005.0 + eps);
+	assert(res->f >= 5005.0 - EPS && res->f <= 5005.0 + EPS);
 	assert(res->unit == U_VOLT);
 	assert(res->oom == OOM_MILLI);
 
@@ -1373,7 +1591,7 @@ test_evaluate_units_oom(void)
 	res	= evaluate(arena, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
-	assert(res->f >= 5005.0 - eps && res->f <= 5005.0 + eps);
+	assert(res->f >= 5005.0 - EPS && res->f <= 5005.0 + EPS);
 	assert(res->unit == U_VOLT);
 	assert(res->oom == OOM_MILLI);
 
@@ -1385,7 +1603,7 @@ test_evaluate_units_oom(void)
 	res	= evaluate(arena, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
-	assert(res->f >= 0.025 - eps && res->f <= 0.025 + eps);
+	assert(res->f >= 0.025 - EPS && res->f <= 0.025 + EPS);
 	assert(res->unit == U_WATT);
 	assert(res->oom == OOM_MILLI);
 
@@ -1568,6 +1786,95 @@ test_evaluate_list(void)
 	arena_release(arena);
 }
 
+static void
+test_evaluate_polynomials(void)
+{
+	char*	linear		= "polynom_one(5, 3)";
+	char*	quadratic	= "polynom_two(5, 3, -1)";
+	char*	cubic		= "polynom_three(1, -7, 7, 15)";
+	char*	quartic		= "polynom_four(3, 6, -123, -126, 1080)";
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+	lexer_t		lexer;
+	ast_node_t*	tree	= 0;
+	return_value_t*	res	= 0;
+
+	lexer_init(&lexer, linear, 17);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+	
+	assert(res->type == RET_FLOAT);
+	assert(res->f < -0.6 + EPS && res->f > -0.6 - EPS);
+	assert(res->next == 0);
+
+	lexer_init(&lexer, quadratic, 21);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+	
+	f64	x1 = (-3+sqrt(29))/10;
+	f64	x2 = (-3-sqrt(29))/10;
+
+	assert(res->type == RET_FLOAT);
+	assert(res->f < x1 + EPS && res->f > x1 - EPS);
+	assert(res->next != 0);
+	
+	assert(res->next->type == RET_FLOAT);
+	assert(res->next->f < x2 + EPS && res->next->f > x2 - EPS);
+	assert(res->next->next == 0);
+	
+	lexer_init(&lexer, cubic, 27);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+	
+
+	x1 = 5;
+	x2 = -1;
+	f64	x3 = 3;
+
+	assert(res->type == RET_FLOAT);
+	assert(res->f < x1 + EPS && res->f > x1 - EPS);
+	assert(res->next != 0);
+	
+	assert(res->next->type == RET_FLOAT);
+	assert(res->next->f < x2 + EPS && res->next->f > x2 - EPS);
+	assert(res->next->next != 0);
+	
+	assert(res->next->next->type == RET_FLOAT);
+	assert(res->next->next->f < x3 + EPS && res->next->next->f > x3 - EPS);
+	assert(res->next->next->next == 0);
+
+	// TODO: quartic test
+	lexer_init(&lexer, quartic, 36);
+
+	tree	= parser_parse_expression(arena, &lexer, 0);
+	res	= evaluate(arena, tree, arena, vmap);
+	
+
+	x1 = 3;
+	x2 = -4;
+	x3 = 5;
+	f64	x4 = -6;
+
+	assert(res->type == RET_FLOAT);
+	assert(res->f < x1 + EPS && res->f > x1 - EPS);
+	assert(res->next != 0);
+	
+	assert(res->next->type == RET_FLOAT);
+	assert(res->next->f < x2 + EPS && res->next->f > x2 - EPS);
+	assert(res->next->next != 0);
+	
+	assert(res->next->next->type == RET_FLOAT);
+	assert(res->next->next->f < x3 + EPS && res->next->next->f > x3 - EPS);
+	assert(res->next->next->next != 0);
+	
+	assert(res->next->next->next->type == RET_FLOAT);
+	assert(res->next->next->next->f < x4 + EPS && res->next->next->next->f > x4 - EPS);
+	assert(res->next->next->next->next == 0);
+}
+
 void
 test_evaluate(void)
 {
@@ -1575,6 +1882,7 @@ test_evaluate(void)
 	test_evaluate_units_oom();
 	test_evaluate_binding();
 	test_evaluate_list();
+	test_evaluate_polynomials();
 }
 
 #endif // TESTER
