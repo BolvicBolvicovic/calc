@@ -158,7 +158,9 @@ static inline double complex
 return_value_complex_mult(return_value_t* a, return_value_t* b)
 {
 	if (a->type == RET_COMPLEX && b->type == RET_COMPLEX)
+	{
 		return a->c * b->c;
+	}
 	else if (a->type == RET_COMPLEX)
 		return a->c * return_value_as_float(b);
 	else
@@ -358,6 +360,9 @@ return_value_convert_to_base(return_value_t* v)
 inline void
 return_value_convert_oom(return_value_t* v, order_of_magnetude_t oom)
 {
+	if (v->type == RET_COMPLEX)
+		return;
+
 	switch (oom)
 	{
 	case OOM_BASE:
@@ -1105,6 +1110,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				break;
 			case RET_COMPLEX:
 				ret->c = return_value_complex_mult(l, r);
+				if (fabs(cimag(ret->c)) < EPS)
+				{
+					ret->type	= RET_FLOAT;
+					ret->f		= creal(ret->c);
+				}
 				break;
 			default:
 			}

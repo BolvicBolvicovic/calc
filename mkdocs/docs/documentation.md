@@ -7,7 +7,7 @@ A calculator for my journey as an embedded system engineer.
 There are three data types: floats, integers and complex.
 When both integers and floats are used in an expression, all integers are casted to a float.
 
-At the moment, complex are only returned when solving cubic and quartic equations. They cannot be declared and cannot be used with any math operators.
+Complex numbers can be computed with the `I` value.
 
 There is no intention of extending the type system concerning the data itself.
 I do not want to build structures as data-layouts in the interpreter as it is a tool for math and not for programming.
@@ -283,4 +283,11 @@ calc> PI
 ```
 calc> E
 > 2.71828
+```
+
+`I` *(I² = -1)*
+
+```
+calc> I*I
+> -1
 ```
