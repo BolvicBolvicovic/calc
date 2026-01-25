@@ -109,26 +109,19 @@ skip_numbers:
 	lexer->stream[lexer->stream_idx].length =
 		lexer->buffer + lexer->buffer_idx - lexer->stream[lexer->stream_idx].start;
 	
-	switch (dots)
+	if (dots <= 1)
 	{
-	case 0:
-		lexer->stream[lexer->stream_idx].symbol = TK_INT;
-		return;
-	case 1:
 		lexer->stream[lexer->stream_idx].symbol = TK_FLOAT;
 		return;
-	default:
-		goto errors;
 	}
 
 	// TODO: Check produced code to see if it does not do anything weird
+	lexer->stream[lexer->stream_idx].symbol = TK_ERR;
+	return;
+
 end_single_char:
 	lexer->stream[lexer->stream_idx].length = 1;
 	lexer->buffer_idx++;
-	return;
-
-errors:
-	lexer->stream[lexer->stream_idx].symbol = TK_ERR;
 	return;
 }
 
@@ -142,8 +135,6 @@ lexer_token_to_string(token_t* t)
 
 	case TK_FLOAT:
 		return "TK_FLOAT";
-	case TK_INT:
-		return "TK_INT";
 
 	case TK_ADD:
 		return "TK_ADD";
@@ -252,7 +243,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 	
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 5);
 	assert(token->length == 1);
 	assert(token->line == 1);
@@ -282,7 +273,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 17);
 	assert(token->length == 1);
 	assert(token->line == 1);
@@ -312,7 +303,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 	
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 28);
 	assert(token->length == 1);
 	assert(token->line == 1);

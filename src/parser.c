@@ -53,7 +53,6 @@ parser_parse_prefix(arena_t* arena, lexer_t* lexer)
 		ast_node_init(node, EXPR_ID, lexer_consume_token(lexer));
 		break;
 	case TK_FLOAT:
-	case TK_INT:
 		node = ARENA_PUSH_STRUCT(arena, ast_node_t);
 		ast_node_init(node, EXPR_CONST, lexer_consume_token(lexer));
 		break;
@@ -161,7 +160,7 @@ test_parser_parse_expression(void)
 	// tree should look like this:
 	// 			[ TK_SUB ]
 	// 	[ TK_SUB ]			[ TK_MUL ]
-	// [ TK_INT ]			[ TK_FLOAT ]	[ TK_INT ]
+	// [ TK_FLOAT ]			[ TK_FLOAT ]	[ TK_FLOAT ]
 	assert(tree);
 	// 3. return - with left = -(5) and right = * (10.0, 5)
 	assert(tree->token.symbol == TK_SUB);
@@ -172,12 +171,12 @@ test_parser_parse_expression(void)
 	//	2.2. left = 10.0
 	assert(tree->right->left->token.symbol == TK_FLOAT);
 	//	2.1. right = 5
-	assert(tree->right->right->token.symbol == TK_INT);
+	assert(tree->right->right->token.symbol == TK_FLOAT);
 
 	// 1. left = -
 	assert(tree->left->token.symbol == TK_SUB);
 	// 	1.1. left = 5
-	assert(tree->left->left->token.symbol == TK_INT);
+	assert(tree->left->left->token.symbol == TK_FLOAT);
 
 	arena_clear(arena);
 
@@ -189,9 +188,9 @@ test_parser_parse_expression(void)
 
 	// tree should look like this:
 	// 				[ TK_MUL ]
-	// 		[ TK_SUB ]			[ TK_INT ]
+	// 		[ TK_SUB ]			[ TK_FLOAT ]
 	// 	[ TK_SUB ]	[ TK_FLOAT ]
-	// [ TK_INT ]
+	// [ TK_FLOAT ]
 	
 	assert(tree);
 	assert(tree->token.symbol == TK_MUL);
@@ -199,9 +198,9 @@ test_parser_parse_expression(void)
 	assert(tree->left->token.symbol == TK_SUB);
 	assert(tree->left->right->token.symbol == TK_FLOAT);
 	assert(tree->left->left->token.symbol == TK_SUB);
-	assert(tree->left->left->left->token.symbol == TK_INT);
+	assert(tree->left->left->left->token.symbol == TK_FLOAT);
 
-	assert(tree->right->token.symbol == TK_INT);
+	assert(tree->right->token.symbol == TK_FLOAT);
 	
 	arena_clear(arena);
 
@@ -213,15 +212,15 @@ test_parser_parse_expression(void)
 
 	// tree should look like this:
 	// 			[ TK_MUL ]
-	// 	[ TK_INT ]			[ TK_ID ]
-	//				[ TK_INT ]
+	// 	[ TK_FLOAT ]			[ TK_ID ]
+	//				[ TK_FLOAT ]
 	
 	assert(tree);
 	assert(tree->token.symbol == TK_MUL);
 	
-	assert(tree->left->token.symbol == TK_INT);
+	assert(tree->left->token.symbol == TK_FLOAT);
 	assert(tree->right->token.symbol == TK_ID);
-	assert(tree->right->left->token.symbol == TK_INT);
+	assert(tree->right->left->token.symbol == TK_FLOAT);
 
 	arena_release(arena);
 }

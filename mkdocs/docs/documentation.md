@@ -4,8 +4,8 @@ A calculator for my journey as an embedded system engineer.
 
 ## Data Types
 
-There are three data types: floats, integers and complex.
-Type cast precedence: integer < float < complex.
+There are two data types: floats and complex.
+Type cast precedence: float < complex.
 
 Complex numbers can be computed with the `I` value.
 
@@ -25,13 +25,8 @@ But it is a finite set of meta-types.
 - multiply operator `*`
 - power operator `^`
 
-**With intergers only**
 
-```
-calc> -5 + 5 * 8 / (5 ^ 6)
-```
-
-**With at least one float value**
+**A basic expression**
 
 ```
 // Note: Result is float.
@@ -42,7 +37,7 @@ calc> -5 + 5.5 * 8 / (5 ^ 6)
 
 ```
 // Note: This is correct
-calc> -5 + 5.5 * 8 / (5 ^ 6)
+calc>    -5+ 5.5 * 8 / (5 ^ 6)
 
 // Note: This too
 calc> -5+5.5*8/(5^6)
@@ -112,7 +107,8 @@ Orders of magnitude (OOMs) are subtypes that can affect a variable's value. They
 
 **Usage**
 
-OOMs can wrap any expression.
+OOMs can wrap any expression that does not result in a complex number.
+Giving an OOM to a complex number will not do anything to it.
 
 ```
 calc> milli(ampere(5)) * milli(volt(5))
@@ -206,6 +202,11 @@ Note that lists are internally linked lists. Accessing an element will be always
 
 ### Polynomials
 
+Note for each polynomial that the numbers in the list are considered as floats.
+If a complex number is passed to one of the function, it is *undefined behaviour*.
+The reason for this is that the user knows that these values are supposed to be Real and not Complex.
+If this turns out to be a problem, extensive checks will be added.
+
 #### `polynom_one(a, b)`
 
 `polynom_one` takes the two first elements of a list and solves the linear equation $ax + b = 0$.
@@ -236,8 +237,6 @@ The unit of the roots is undefined.
 
 ### Trigonometry
 
-They all return a float between 1 and -1.
-
 - `cos(a)`
 - `arccos(a)`
 - `tan(a)`
@@ -249,11 +248,11 @@ They all return a float between 1 and -1.
 
 #### `sqrt(a)`
 
-Square root of a number. Returns a float.
+Square root of a number. Returns a float or a complex number.
 
 #### `cbrt(a)`
 
-Cube root of a number. Returns a float.
+Cube root of a number. Returns a float or a complex number.
 
 ### Constants
 

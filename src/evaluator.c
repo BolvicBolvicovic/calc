@@ -55,9 +55,6 @@ evaluator_print_res_val(return_value_t* res)
 {
 	switch (res->type)
 	{
-	case RET_INT:
-		printf("%ld", res->i);
-		break;
 	case RET_FLOAT:
 		printf("%g", res->f);
 		break;
@@ -124,23 +121,10 @@ evaluator_print_res_val(return_value_t* res)
 inline f64
 return_value_as_float(return_value_t* v)
 {
-	if (v->type == RET_FLOAT)
-		return v->f;
-	else if (v->type == RET_COMPLEX)
+	if (v->type == RET_COMPLEX)
 		return creal(v->c);
-
-	return (f64)v->i;
-}
-
-static inline s64
-return_value_as_int(return_value_t* v)
-{
-	if (v->type == RET_FLOAT)
-		return (s64)v->f;
-	else if (v->type == RET_COMPLEX)
-		return (s64)creal(v->c);
-
-	return v->i;
+	
+	return v->f;
 }
 
 static inline double complex
@@ -148,51 +132,15 @@ return_value_as_complex(return_value_t* v)
 {
 	if (v->type == RET_FLOAT)
 		return v->f;
-	else if (v->type == RET_INT)
-		return v->i;
 	
 	return v->c;
-}
-
-static inline double complex
-return_value_complex_mult(return_value_t* a, return_value_t* b)
-{
-	if (a->type == RET_COMPLEX && b->type == RET_COMPLEX)
-	{
-		return a->c * b->c;
-	}
-	else if (a->type == RET_COMPLEX)
-		return a->c * return_value_as_float(b);
-	else
-		return return_value_as_float(a) * b->c;
-}
-
-static inline double complex
-return_value_complex_div(return_value_t* a, return_value_t* b)
-{
-	if (a->type == RET_COMPLEX && b->type == RET_COMPLEX)
-		return a->c / b->c;
-	else if (a->type == RET_COMPLEX)
-		return a->c / return_value_as_float(b);
-	else
-		return return_value_as_float(a) / b->c;
-}
-
-inline void
-return_value_cast_to_float(return_value_t* v)
-{
-	if (v->type == RET_INT)
-		v->f = (f64)v->i;
-	else if (v->type == RET_COMPLEX)
-		v->f = creal(v->c);
-
-	v->type = RET_FLOAT;
 }
 
 static inline void
 return_value_convert_to_nano(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -220,7 +168,8 @@ return_value_convert_to_nano(return_value_t* v)
 static inline void
 return_value_convert_to_micro(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -248,7 +197,8 @@ return_value_convert_to_micro(return_value_t* v)
 static inline void
 return_value_convert_to_milli(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -276,7 +226,8 @@ return_value_convert_to_milli(return_value_t* v)
 static inline void
 return_value_convert_to_centi(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -304,7 +255,8 @@ return_value_convert_to_centi(return_value_t* v)
 static inline void
 return_value_convert_to_deci(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -332,7 +284,8 @@ return_value_convert_to_deci(return_value_t* v)
 static inline void
 return_value_convert_to_base(return_value_t* v)
 {
-	return_value_cast_to_float(v);
+	if (v->type == RET_COMPLEX)
+		return;
 
 	switch (v->oom)
 	{
@@ -423,17 +376,6 @@ evaluator_atof(token_t* token)
 	return res;
 }
 
-static s64
-evaluator_atoi(token_t* token)
-{
-	s64	res = 0;
-
-	for (u32 i = 0; i < token->length; i++)
-		res = res * 10 + (token->start[i] - '0');
-
-	return res;
-}
-
 return_value_t*
 evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
 {
@@ -442,7 +384,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 	return_value_t*	ret = ARENA_PUSH_STRUCT(arena, return_value_t);
 	
-	ret->type	= RET_INT;
+	ret->type	= RET_FLOAT;
 	ret->unit	= U_NONE;
 	ret->oom	= OOM_NONE;
 	ret->token	= &node->token;
@@ -548,13 +490,13 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				s64		i	= 0;
 				return_value_t*	tmp	= *var;
 
-				switch (ret->token->symbol)
+				switch (ret->type)
 				{
-				case TK_INT:
-					idx = ret->i;
-					break;
-				case TK_FLOAT:
+				case RET_FLOAT:
 					idx = (s64)ret->f;
+					break;
+				case RET_COMPLEX:
+					idx = (s64)creal(ret->c);
 					break;
 				default:
 				}
@@ -634,9 +576,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 	case EXPR_CONST:
 		switch (node->token.symbol)
 		{
-		case TK_INT:
-			ret->i = evaluator_atoi(&node->token);
-			break;
 		case TK_FLOAT:
 			ret->type = RET_FLOAT;
 			ret->f = evaluator_atof(&node->token);
@@ -648,19 +587,8 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		
 		if (node->left && ret->type != RET_ERR)
 		{
-			s64	idx	= 0;
+			s64	idx	= (s64)ret->f;
 			s64	i	= 0;
-
-			switch (node->token.symbol)
-			{
-			case TK_INT:
-				idx = ret->i;
-				break;
-			case TK_FLOAT:
-				idx = (s64)ret->f;
-				break;
-			default:
-			}
 
 			ret = evaluate(arena, node->left, arena_vmap, vmap);
 
@@ -676,10 +604,10 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		case TK_SUB:
 			ret = evaluate(arena, node->left, arena_vmap, vmap);
 
-			if (ret->type == RET_INT)
-				ret->i = -ret->i;
-			else if (ret->type == RET_FLOAT)
+			if (ret->type == RET_FLOAT)
 				ret->f = -ret->f;
+			else if (ret->type == RET_COMPLEX)
+				ret->c = -ret->c;
 			break;
 		default:
 			ret->type = RET_ERR;
@@ -698,8 +626,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		
 		if (l->type == RET_COMPLEX || r->type == RET_COMPLEX)
 			ret->type = RET_COMPLEX;
-		else if (l->type == RET_FLOAT || r->type == RET_FLOAT)
-			ret->type = RET_FLOAT;
 
 		switch (node->token.symbol)
 		{
@@ -775,14 +701,16 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 			switch (ret->type)
 			{
-			case RET_INT:
-				ret->i = return_value_as_int(l) + return_value_as_int(r);
-				break;
 			case RET_FLOAT:
-				ret->f = return_value_as_float(l) + return_value_as_float(r);
+				ret->f = l->f + r->f;
 				break;
 			case RET_COMPLEX:
 				ret->c = return_value_as_complex(l) + return_value_as_complex(r);
+				if (fabs(cimag(ret->c)) < EPS)
+				{
+					ret->type	= RET_FLOAT;
+					ret->f		= creal(ret->c);
+				}
 				break;
 			default:
 			}
@@ -826,21 +754,23 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 			switch (ret->type)
 			{
-			case RET_INT:
-				ret->i = return_value_as_int(l) - return_value_as_int(r);
-				break;
 			case RET_FLOAT:
-				ret->f = return_value_as_float(l) - return_value_as_float(r);
+				ret->f = l->f - r->f;
 				break;
 			case RET_COMPLEX:
 				ret->c = return_value_as_complex(l) - return_value_as_complex(r);
+
+				if (fabs(cimag(ret->c)) < EPS)
+				{
+					ret->type	= RET_FLOAT;
+					ret->f		= creal(ret->c);
+				}
 				break;
 			default:
 			}
 			break;
 		case TK_DIV:
-			if ((r->type == RET_INT && r->i == 0)
-				|| (r->type == RET_FLOAT && fabs(r->f) < EPS)
+			if ((r->type == RET_FLOAT && fabs(r->f) < EPS)
 				|| (r->type == RET_COMPLEX && fabs(creal(r->c)) < EPS && fabs(cimag(r->c)) < EPS))
 			{
 				ret->type = RET_ERR;
@@ -952,19 +882,25 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 			switch (ret->type)
 			{
-			case RET_INT:
-				ret->i = return_value_as_int(l) / return_value_as_int(r);
-				break;
 			case RET_FLOAT:
-				ret->f = return_value_as_float(l) / return_value_as_float(r);
+				ret->f = l->f / r->f;
+				return_value_convert_oom(ret, m_div);
 				break;
 			case RET_COMPLEX:
-				ret->c = return_value_complex_div(l, r);
+				if (l->type == RET_COMPLEX && r->type == RET_COMPLEX)
+					ret->c = l->c / r->c;
+				else if (l->type == RET_COMPLEX)
+					ret->c = l->c / r->f;
+				else
+					ret->c = l->f / r->c;
 				break;
+				if (fabs(cimag(ret->c)) < EPS)
+				{
+					ret->type	= RET_FLOAT;
+					ret->f		= creal(ret->c);
+				}
 			default:
 			}
-			
-			return_value_convert_oom(ret, m_div);
 
 			break;
 		case TK_POW:
@@ -990,19 +926,15 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			
 			switch (ret->type)
 			{
-			case RET_INT:
-				ret->i = (s64)pow(return_value_as_int(l), return_value_as_int(r));
-				break;
 			case RET_FLOAT:
-				ret->f = pow(return_value_as_float(l), return_value_as_float(r));
+				ret->f = pow(l->f, r->f);
+				return_value_convert_oom(ret, m_pow);
 				break;
 			case RET_COMPLEX:
 				ret->c = cpow(return_value_as_complex(l), return_value_as_complex(r));
 				break;
 			default:
 			}
-
-			return_value_convert_oom(ret, m_pow);
 			break;
 		case TK_MUL:
 			order_of_magnetude_t	m_mul = OOM_NONE;
@@ -1102,14 +1034,18 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 			switch (ret->type)
 			{
-			case RET_INT:
-				ret->i = return_value_as_int(l) * return_value_as_int(r);
-				break;
 			case RET_FLOAT:
-				ret->f = return_value_as_float(l) * return_value_as_float(r);
+				ret->f = l->f * r->f;
+				return_value_convert_oom(ret, m_mul);
 				break;
 			case RET_COMPLEX:
-				ret->c = return_value_complex_mult(l, r);
+				if (l->type == RET_COMPLEX && r->type == RET_COMPLEX)
+					ret->c = l->c * r->c;
+				else if (l->type == RET_COMPLEX)
+					ret->c = l->c * r->f;
+				else
+					ret->c = l->f * r->c;
+				
 				if (fabs(cimag(ret->c)) < EPS)
 				{
 					ret->type	= RET_FLOAT;
@@ -1119,7 +1055,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			default:
 			}
 			
-			return_value_convert_oom(ret, m_mul);
 			break;
 		default:
 			ret->type = RET_ERR;
@@ -1159,20 +1094,7 @@ evaluator_print_res(return_value_t* res)
 
 #ifdef TESTER
 
-void
-test_evaluator_atoi(void)
-{
-	char*	test	= "25634";
-	token_t	tok	=
-	{
-		.start	= test,
-		.length	= 5,
-	};
-
-	assert(evaluator_atoi(&tok) == 25634);
-}
-
-void
+static void
 test_evaluator_atof(void)
 {
 	char*	test	= "256.34";
@@ -1233,8 +1155,8 @@ test_evaluate_units_oom(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 5);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 5);
 	assert(res->unit == U_AMPERE);
 	assert(res->oom == OOM_NONE);
 	
@@ -1294,11 +1216,11 @@ test_evaluate_binding(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 	
-	assert(res->type == RET_INT);
-	assert(res->i == 10);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 10);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
-	assert((*variables_map_get(vmap, &x))->i == 10);
+	assert((*variables_map_get(vmap, &x))->f == 10);
 
 	char*	test8 = "x + 10";
 
@@ -1307,8 +1229,8 @@ test_evaluate_binding(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 	
-	assert(res->type == RET_INT);
-	assert(res->i == 20);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 20);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
@@ -1319,8 +1241,8 @@ test_evaluate_binding(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 20);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 20);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
@@ -1332,11 +1254,11 @@ test_evaluate_binding(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 	
-	assert(res->type == RET_INT);
-	assert(res->i == 5);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 5);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
-	assert((*variables_map_get(vmap, &y))->i == 5);
+	assert((*variables_map_get(vmap, &y))->f == 5);
 
 	char*	test11 = "x + y";
 
@@ -1345,8 +1267,8 @@ test_evaluate_binding(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 15);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 15);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
@@ -1369,20 +1291,20 @@ test_evaluate_list(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 1);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 1);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
 	assert(res->next);
-	assert(res->next->type == RET_INT);
-	assert(res->next->i == 2);
+	assert(res->next->type == RET_FLOAT);
+	assert(res->next->f == 2);
 	assert(res->next->unit == U_NONE);
 	assert(res->next->oom == OOM_NONE);
 
 	assert(res->next->next);
-	assert(res->next->next->type == RET_INT);
-	assert(res->next->next->i == 3);
+	assert(res->next->next->type == RET_FLOAT);
+	assert(res->next->next->f == 3);
 	assert(res->next->next->unit == U_NONE);
 	assert(res->next->next->oom == OOM_NONE);
 
@@ -1394,44 +1316,44 @@ test_evaluate_list(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 1);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 1);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 
 	assert(res->next);
-	assert(res->next->type == RET_INT);
-	assert(res->next->i == 2);
+	assert(res->next->type == RET_FLOAT);
+	assert(res->next->f == 2);
 	assert(res->next->unit == U_NONE);
 	assert(res->next->oom == OOM_NONE);
 
 	assert(res->next->next);
-	assert(res->next->next->type == RET_INT);
-	assert(res->next->next->i == 3);
+	assert(res->next->next->type == RET_FLOAT);
+	assert(res->next->next->f == 3);
 	assert(res->next->next->unit == U_NONE);
 	assert(res->next->next->oom == OOM_NONE);
 	
 	assert(res->next->next->next == 0);
 	
 	return_value_t**	val = variables_map_get(vmap, &x);
-	assert((*val)->i == 1);
+	assert((*val)->f == 1);
 
-	assert((*val)->type == RET_INT);
-	assert((*val)->i == 1);
+	assert((*val)->type == RET_FLOAT);
+	assert((*val)->f == 1);
 	assert((*val)->unit == U_NONE);
 	assert((*val)->oom == OOM_NONE);
 
 	assert((*val)->next);
 	assert((*val)->next != res->next);
-	assert((*val)->next->type == RET_INT);
-	assert((*val)->next->i == 2);
+	assert((*val)->next->type == RET_FLOAT);
+	assert((*val)->next->f == 2);
 	assert((*val)->next->unit == U_NONE);
 	assert((*val)->next->oom == OOM_NONE);
 
 	assert((*val)->next->next != res->next->next);
 	assert((*val)->next->next);
-	assert((*val)->next->next->type == RET_INT);
-	assert((*val)->next->next->i == 3);
+	assert((*val)->next->next->type == RET_FLOAT);
+	assert((*val)->next->next->f == 3);
 	assert((*val)->next->next->unit == U_NONE);
 	assert((*val)->next->next->oom == OOM_NONE);
 
@@ -1444,8 +1366,8 @@ test_evaluate_list(void)
 	tree	= parser_parse_expression(arena, &lexer, 0);
 	res	= evaluate(arena, tree, arena, vmap);
 
-	assert(res->type == RET_INT);
-	assert(res->i == 2);
+	assert(res->type == RET_FLOAT);
+	assert(res->f == 2);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
 	assert(res->next == 0);
@@ -1479,6 +1401,7 @@ test_evaluate_complex(void)
 void
 test_evaluate(void)
 {
+	test_evaluator_atof();
 	test_evaluate_base();
 	test_evaluate_units_oom();
 	test_evaluate_binding();

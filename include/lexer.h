@@ -11,7 +11,6 @@ enum __attribute__((mode(SI))) symbol_t
 
 	// Types
 	TK_FLOAT,
-	TK_INT,
 
 	// Operations
 	TK_ADD,
