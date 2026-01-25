@@ -40,29 +40,29 @@ swiss_init_ctrl(u8* ctrl, u64 cap)
 }
 
 static inline u8
-swiss_match_h2(u8* ctrl, u8 h2, u64 base, u64 mask)
+swiss_match_h2(u8* ctrl, u8 h2, u64 offset)
 {
 	u8	mask_out = 0;
 
 	for (u32 i = 0; i < 8; i++)
-		if (ctrl[(base + i) & mask] == h2)
+		if (ctrl[offset +i] == h2)
 			mask_out |= (1u << i);
 
 	return mask_out;
 }
 
 static inline s32
-swiss_find_empty(u8* ctrl, u64 base, u64 mask)
+swiss_find_empty(u8* ctrl, u64 offset, u64 mask)
 {
 	for (u32 i = 0; i < 8; i++)
-		if (ctrl[(base + i) & mask] == SWISS_EMPTY)
+		if (ctrl[offset + i] == SWISS_EMPTY)
 			return i;
 
 	return -1;
 }
 
 static inline u64
-djb2_hash(char* str)
+swiss_djb2_hash(char* str)
 {
 	u64	hash = 5381;
 	s32	c;
@@ -74,7 +74,7 @@ djb2_hash(char* str)
 }
 
 static inline s32
-strcmp_wrapper(char* s1, char* s2)
+swiss_strcmp_wrapper(char* s1, char* s2)
 {
 	return strcmp(s1, s2) == 0;
 }
@@ -112,7 +112,7 @@ name##_get(name* map, K_t key)					\
 								\
 	do							\
 	{							\
-		u8	m = swiss_match_h2(map->ctrl, h2, group, mask);\
+		u8	m = swiss_match_h2(map->ctrl, h2, group & mask);\
 								\
 		while (m)					\
 		{						\
@@ -125,7 +125,7 @@ name##_get(name* map, K_t key)					\
 			m &= m - 1;				\
 		}						\
 								\
-		if (swiss_find_empty(map->ctrl, group, mask) != -1)\
+		if (swiss_find_empty(map->ctrl, group & mask) != -1)\
 			return 0;				\
 								\
 		group = (group + 8) & mask;			\
@@ -149,7 +149,7 @@ name##_put(name* map, K_t key, V_t value)			\
 								\
 	while (1)						\
 	{							\
-		u8	m = swiss_match_h2(map->ctrl, h2, group, mask);\
+		u8	m = swiss_match_h2(map->ctrl, h2, group & mask);\
 								\
 		while (m)					\
 		{						\
@@ -165,7 +165,7 @@ name##_put(name* map, K_t key, V_t value)			\
 			m &= m - 1;				\
 		}						\
 								\
-		s32	empty	= swiss_find_empty(map->ctrl, group, mask);\
+		s32	empty	= swiss_find_empty(map->ctrl, group & mask);\
 								\
 		if (empty != -1)				\
 		{						\
@@ -189,7 +189,7 @@ SWISSMAP_DEFINE_GET(name, K_t, V_t, hash_fn, eq_fn)	\
 SWISSMAP_DEFINE_PUT(name, K_t, V_t, hash_fn, eq_fn)
 
 #define SWISSMAP_DEFINE_FUNCTIONS_DEFAULT(name, V_t)	\
-SWISSMAP_DEFINE_FUNCTIONS(name, char*, V_t, djb2_hash, strcmp_wrapper)
+SWISSMAP_DEFINE_FUNCTIONS(name, char*, V_t, swiss_djb2_hash, swiss_strcmp_wrapper)
 
 #define SWISSMAP_DEFINE_FUNCTIONS_DEFAULT_CUSTOM_FUNC(name, V_t, hash_fn, eq_fn)\
 SWISSMAP_DEFINE_FUNCTIONS(name, char*, V_t, hash_fn, eq_fn)

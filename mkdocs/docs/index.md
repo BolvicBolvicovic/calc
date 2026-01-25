@@ -42,7 +42,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- optimization / deleting integer type
+- optimization / deleting integer type / documentation for swissmap
 
 ### Finished
 
@@ -52,7 +52,7 @@ List of all features that I thought about and that have been validated or not, i
 - product operator: `expr * expr`
 - division operator: `expr / expr`
 - pow operator: `expr ^ expr`
-- implicit type system (float / int)
+- implicit type system (float / complex)
 - identifiers
 - units
 - orders of magnetude

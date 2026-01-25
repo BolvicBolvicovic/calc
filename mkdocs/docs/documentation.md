@@ -4,13 +4,13 @@ A calculator for my journey as an embedded system engineer.
 
 ## Data Types
 
-There are two data types: floats and complex.
+There are two data types: float and complex.
 Type cast precedence: float < complex.
 
 Complex numbers can be computed with the `I` value.
 
 There is no intention of extending the type system concerning the data itself.
-I do not want to build structures as data-layouts in the interpreter as it is a tool for math and not for programming.
+I do not want to build structures as data-layouts in the interpreter as it is a tool for math/physics and not for programming.
 
 However, the physics unit system enforces some kind of meta-type upon variables for certain operations.
 But it is a finite set of meta-types.
@@ -24,7 +24,6 @@ But it is a finite set of meta-types.
 - divide operator `/`
 - multiply operator `*`
 - power operator `^`
-
 
 **A basic expression**
 

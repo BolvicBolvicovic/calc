@@ -1,8 +1,10 @@
 BIN	= calc
+VERSION = v0.1
 TESTER	= tester
 
 CC	= gcc
 CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init
+BFLAGS	= -O3 -Wno-override-init
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
@@ -10,6 +12,9 @@ SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c $(addpr
 #OBJS	= $(SRCS:.c=.o)
 
 all: run
+
+build: $(SRCS)
+	$(CC) $(BFLAGS) $(INC) main.c $^ $(LFLAGS) -o $(BIN)-$(VERSION)
 
 # Note: We want a full rebuild atm but if needed, move to an incremental one.
 $(BIN): $(SRCS)
