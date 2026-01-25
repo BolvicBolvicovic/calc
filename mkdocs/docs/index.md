@@ -27,8 +27,8 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-- square root
-- complex numbers operators & declaration
+- optimization / deleting integer type
+- adding more physics units
 
 ### Refused
 
@@ -36,8 +36,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- complex numbers
-- built-ins:  linear, quadratic, cubic and quartic polynomials
+*NONE*
 
 ### Finished
 
@@ -51,9 +50,13 @@ List of all features that I thought about and that have been validated or not, i
 - identifiers
 - units
 - orders of magnetude
-- constants: `PI`, `E`
+- constants: `PI`, `E`, `I`
 - variables binding operator: `literal_expr :: expr`
 - lists with the `,` operator
+- square/cube root
+- complex numbers
+- built-ins:  polynomials, trigo and cube/square roots
+- practical built-ins: exit, clear
 
 ### Spotted issues
 

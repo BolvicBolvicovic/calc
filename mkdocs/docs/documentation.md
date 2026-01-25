@@ -5,7 +5,7 @@ A calculator for my journey as an embedded system engineer.
 ## Data Types
 
 There are three data types: floats, integers and complex.
-When both integers and floats are used in an expression, all integers are casted to a float.
+Type cast precedence: integer < float < complex.
 
 Complex numbers can be computed with the `I` value.
 
@@ -255,16 +255,6 @@ Square root of a number. Returns a float.
 
 Cube root of a number. Returns a float.
 
-## Other Built-Ins
-
-### `exit`
-
-Quits the calculator.
-
-### `clear`
-
-Clears the terminal.
-
 ### Constants
 
 *(WIP) Maybe make constant part of metadata AND/OR use as a float/int.*
@@ -291,3 +281,13 @@ calc> E
 calc> I*I
 > -1
 ```
+
+## Other Built-Ins
+
+### `exit`
+
+Quits the calculator.
+
+### `clear`
+
+Clears the terminal.
