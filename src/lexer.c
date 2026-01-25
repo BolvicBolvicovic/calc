@@ -61,6 +61,9 @@ lexer_stream(lexer_t* lexer)
 	case ')':
 		lexer->stream[lexer->stream_idx].symbol = TK_RP;
 		goto end_single_char;
+	case ',':
+		lexer->stream[lexer->stream_idx].symbol = TK_LIST;
+		goto end_single_char;
 	case ':':
 		if (lexer->buffer_idx == lexer->buffer_size + 1
 			|| lexer->buffer[lexer->buffer_idx + 1] != ':')
@@ -93,7 +96,7 @@ lexer_stream(lexer_t* lexer)
 	lexer->buffer_idx++;
 
 skip_numbers:
-	while (isdigit(lexer->buffer[lexer->buffer_idx]))
+	while (lexer->buffer_idx < lexer->buffer_size && isdigit(lexer->buffer[lexer->buffer_idx]))
 		lexer->buffer_idx++;
 
 	if (lexer->buffer[lexer->buffer_idx] == '.')
@@ -154,6 +157,8 @@ lexer_token_to_string(token_t* t)
 		return "TK_POW";
 	case TK_BIND:
 		return "TK_BIND";
+	case TK_LIST:
+		return "TK_LIST";
 
 	case TK_LP:
 		return "TK_LP";

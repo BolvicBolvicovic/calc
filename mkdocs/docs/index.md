@@ -16,16 +16,19 @@ List of all features that I thought about and that have been validated or not, i
 - binary logic
 - use fixed number instead of float
 - make constant part of metadata OR use as a float/int
-- complex numbers
 - handle squared and square roots of units
 - improve user's error system
-- variables assignment: x := 5
-- lists dimensions (i.e. dim1: (5, 6, 4, 5), dim2: dim((5, 5, 8, 6), 2))
-- square root
+- variables assignment: `x := 5`
+- lists dimensions (i.e. dim1: `(5, 6, 4, 5)`, dim2: `dim((5, 5, 8, 6), 2)`)
+- equations with the `=` operator
+- list operations
+- helper with short documentation
+- new_session helper that clears the variables map
 
 ### Validated
 
-- equations with the `=` operator
+- optimization / deleting integer type
+- adding more physics units
 
 ### Refused
 
@@ -33,7 +36,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- lists with the `,` operator
+*NONE*
 
 ### Finished
 
@@ -47,8 +50,13 @@ List of all features that I thought about and that have been validated or not, i
 - identifiers
 - units
 - orders of magnetude
-- constants: `PI`, `E`
+- constants: `PI`, `E`, `I`
 - variables binding operator: `literal_expr :: expr`
+- lists with the `,` operator
+- square/cube root
+- complex numbers
+- built-ins:  polynomials, trigo and cube/square roots
+- practical built-ins: exit, clear
 
 ### Spotted issues
 

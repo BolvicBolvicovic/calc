@@ -6,7 +6,7 @@ CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
-SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c)
+SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c $(addprefix builtins/, polynomials.c roots.c trigo.c))
 #OBJS	= $(SRCS:.c=.o)
 
 all: run
@@ -16,7 +16,7 @@ $(BIN): $(SRCS)
 	$(CC) $(CFLAGS) $(INC) main.c $^ $(LFLAGS) -o $(BIN)
 
 $(TESTER): $(SRCS)
-	$(CC) $(CFLAGS) -DTESTER $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
+	$(CC) -fsanitize=address $(CFLAGS) -DTESTER $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
 
 clean:
 	rm -rf $(BIN)

@@ -2,15 +2,17 @@
 
 A calculator for my journey as an embedded system engineer.
 
-## Types
+## Data Types
 
-At the moment, there are two types: floats and integers.
-When using a float in an expression, the result of that expression is automatically casted to a float.
+There are three data types: floats, integers and complex.
+Type cast precedence: integer < float < complex.
+
+Complex numbers can be computed with the `I` value.
 
 There is no intention of extending the type system concerning the data itself.
 I do not want to build structures as data-layouts in the interpreter as it is a tool for math and not for programming.
 
-However, the physics unit system enforces some kind of meta-type upon variables.
+However, the physics unit system enforces some kind of meta-type upon variables for certain operations.
 But it is a finite set of meta-types.
 
 ## Simple expressions
@@ -28,6 +30,7 @@ But it is a finite set of meta-types.
 ```
 calc> -5 + 5 * 8 / (5 ^ 6)
 ```
+
 **With at least one float value**
 
 ```
@@ -168,14 +171,14 @@ calc> milli(watt(5)) :: x
 > 5 milli watt
 ```
 
-## Lists *(WIP)*
+## Lists
 
-Lists is the container of the calc interpreter. A list is a list of values (floats or integer).
-At the moment, they are used as arguments for built-ins.
+The list is the container of the calc interpreter. A list is a list of values (floats or integer).
+At the moment, they can only be used as arguments for built-ins.
 
 Later on, they could be used to declare matrices, to be returned as result of equations and more...
 
-### List operator `,` *(WIP)*
+### List operator `,`
 
 A list is defined with the `,` operator as `(left_expr, right_expr)`.
 
@@ -190,24 +193,67 @@ One can access an element of a list with a 0-based index like so:
 calc> my_list(0)
 > 12
 calc> my_list(10)
-> list index out of bound
+> Error while evaluating expression
 ```
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
 
-## Equations *(WIP)*
+### List operations *(WIP)*
 
 // TODO
 
-### Equation operator `=`
+## Math Built-ins
 
-// TODO
+### Polynomials
 
-## Other Built-Ins
+#### `polynom_one(a, b)`
 
-### `exit`
+`polynom_one` takes the two first elements of a list and solves the linear equation $ax + b = 0$.
+The returned value is a float.
+The smallest order of magnitude is chosen between `a` and `b`.
+The unit is undefined.
 
-Quits the calculator.
+#### `polynom_two(a, b, c)`
+
+`polynom_two` takes the three first elements of a list and solves the quadratic equation $ax^2 + bx + c = 0$.
+The returned value is a list with the 2 roots as floats.
+The smallest order of magnitude is chosen between `a`, `b` and `c`.
+The unit of the roots is undefined.
+
+#### `polynom_three(a, b, c, d)`
+
+`polynom_three` takes the four first elements of a list and solves the cubic equation $ax^3 + bx^2 + cx + d = 0$.
+The returned value is a list with the 3 roots as floats and/or complex.
+The order of magnitude is the base magnitude.
+The unit of the roots is undefined.
+
+#### `polynom_four(a, b, c, d, e)`
+
+`polynom_four` takes the five first elements of a list and solves the quartic equation $ax^4 + bx^3 + cx^2 + dx + e = 0$.
+The returned value is a list with the 4 roots as floats and/or complex.
+The order of magnitude is the base magnitude.
+The unit of the roots is undefined.
+
+### Trigonometry
+
+They all return a float between 1 and -1.
+
+- `cos(a)`
+- `arccos(a)`
+- `tan(a)`
+- `arctan(a)`
+- `sin(a)`
+- `arcsin(a)`
+
+### Others
+
+#### `sqrt(a)`
+
+Square root of a number. Returns a float.
+
+#### `cbrt(a)`
+
+Cube root of a number. Returns a float.
 
 ### Constants
 
@@ -228,3 +274,20 @@ calc> PI
 calc> E
 > 2.71828
 ```
+
+`I` *(I² = -1)*
+
+```
+calc> I*I
+> -1
+```
+
+## Other Built-Ins
+
+### `exit`
+
+Quits the calculator.
+
+### `clear`
+
+Clears the terminal.

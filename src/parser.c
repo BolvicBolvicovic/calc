@@ -24,15 +24,17 @@ parser_get_precedence(symbol_t symbol)
 	{
 	case TK_BIND:
 		return 2;
+	case TK_LIST:
+		return 4;
 	case TK_ADD:
 	case TK_SUB:
-		return 4;
+		return 6;
 	case TK_MUL:
 	case TK_DIV:
 	case TK_POW:
-		return 6;
-	case TK_LP:
 		return 8;
+	case TK_LP:
+		return 10;
 	default:
 		return 0;
 	}
@@ -93,6 +95,7 @@ parser_parse_infix(arena_t* arena, lexer_t* lexer, ast_node_t* left)
 	case TK_DIV:
 	case TK_POW:
 	case TK_BIND:
+	case TK_LIST:
 		node = ARENA_PUSH_STRUCT(arena, ast_node_t);
 		ast_node_init(node, EXPR_BOP, lexer_consume_token(lexer));
 		node->left = left;
