@@ -3,8 +3,8 @@ VERSION = v0.1
 TESTER	= tester
 
 CC	= gcc
-CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init
-BFLAGS	= -O3 -Wno-override-init
+CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init -march=native
+BFLAGS	= -O3 -Wno-override-init -march=native
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
