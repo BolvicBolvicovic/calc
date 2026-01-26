@@ -33,6 +33,7 @@ enum __attribute__((mode(SI))) symbol_t
 typedef struct token_t token_t;
 struct token_t
 {
+	// Note: Space for 32 bits
 	symbol_t	symbol;
 	char*		start;
 	u32		length;

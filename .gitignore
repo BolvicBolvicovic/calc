@@ -1,4 +1,5 @@
 # Binaries
 calc
-tester
 calc-v*
+tester
+*perf*

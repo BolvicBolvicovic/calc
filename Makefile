@@ -4,7 +4,7 @@ TESTER	= tester
 
 CC	= gcc
 CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init -march=native
-BFLAGS	= -O3 -Wno-override-init -march=native
+BFLAGS	= -O3 -Wno-override-init -march=native -fno-pie -no-pie
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
@@ -21,23 +21,26 @@ $(BIN): $(SRCS)
 	$(CC) $(CFLAGS) $(INC) main.c $^ $(LFLAGS) -o $(BIN)
 
 $(TESTER): $(SRCS)
-	$(CC) -fsanitize=address $(CFLAGS) -DTESTER $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
+	$(CC) -fsanitize=address -DTESTER $(CFLAGS) $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)
+
+$(TESTER)-perf: $(SRCS)
+	$(CC) -g -DTESTER $(BFLAGS) $(INC) tests.c $^ $(LFLAGS) -o $(TESTER)-perf
 
 clean:
 	rm -rf $(BIN)
 
-clean_tester:
-	rm -rf $(TESTER)
+clean_testers:
+	rm -rf $(TESTER) $(TESTER)-perf
 
-fclean: clean clean_tester
+fclean: clean clean_testers
 
 re: clean $(BIN)
 
 run: re
 	./$(BIN)
 
-tests: clean_tester $(TESTER)
-	./$(TESTER)
+tests: clean_testers $(TESTER) $(TESTER)-perf
+	./$(TESTER) && ./$(TESTER)-perf
 
 docs_serve:
 	cd mkdocs && mkdocs serve
