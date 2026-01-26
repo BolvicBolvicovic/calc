@@ -131,6 +131,8 @@ parser_parse_expression(arena_t* arena, lexer_t* lexer, s32 precedence)
 	return left;
 }
 
+#ifdef TESTER
+
 void
 parser_print_preorder(ast_node_t* expr, s32 d)
 {
@@ -142,8 +144,6 @@ parser_print_preorder(ast_node_t* expr, s32 d)
 	parser_print_preorder(expr->left, d + 1);
 	parser_print_preorder(expr->right, d + 1);
 }
-
-#ifdef TESTER
 
 void
 test_parser_parse_expression(void)
