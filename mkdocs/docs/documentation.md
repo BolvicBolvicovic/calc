@@ -205,36 +205,31 @@ Note for each polynomial that the numbers in the list are considered as floats.
 If a complex number is passed to one of the function, it is *undefined behaviour*.
 The reason for this is that the user knows that these values are supposed to be Real and not Complex.
 If this turns out to be a problem, extensive checks will be added.
+The order of magnitude for each root is the base magnitude and the unit is undefined.
 
 #### `polynom_one(a, b)`
 
 `polynom_one` takes the two first elements of a list and solves the linear equation $ax + b = 0$.
 The returned value is a float.
-The smallest order of magnitude is chosen between `a` and `b`.
-The unit is undefined.
 
 #### `polynom_two(a, b, c)`
 
 `polynom_two` takes the three first elements of a list and solves the quadratic equation $ax^2 + bx + c = 0$.
 The returned value is a list with the 2 roots as floats.
-The smallest order of magnitude is chosen between `a`, `b` and `c`.
-The unit of the roots is undefined.
 
 #### `polynom_three(a, b, c, d)`
 
 `polynom_three` takes the four first elements of a list and solves the cubic equation $ax^3 + bx^2 + cx + d = 0$.
 The returned value is a list with the 3 roots as floats and/or complex.
-The order of magnitude is the base magnitude.
-The unit of the roots is undefined.
 
 #### `polynom_four(a, b, c, d, e)`
 
 `polynom_four` takes the five first elements of a list and solves the quartic equation $ax^4 + bx^3 + cx^2 + dx + e = 0$.
 The returned value is a list with the 4 roots as floats and/or complex.
-The order of magnitude is the base magnitude.
-The unit of the roots is undefined.
 
 ### Trigonometry
+
+Handles complex numbers.
 
 - `cos(a)`
 - `arccos(a)`

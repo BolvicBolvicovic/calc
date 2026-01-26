@@ -1,7 +1,7 @@
 #include <builtins.h>
 #include <math.h>
 
-inline void
+__always_inline void
 roots_sqrt(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -10,7 +10,7 @@ roots_sqrt(return_value_t* val)
 		val->f = sqrt(val->f);
 }
 
-inline void
+__always_inline void
 roots_cbrt(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)

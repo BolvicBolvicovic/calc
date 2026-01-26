@@ -1,7 +1,7 @@
 #include <builtins.h>
 #include <math.h>
 
-inline void
+__always_inline void
 trigo_cos(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -10,7 +10,7 @@ trigo_cos(return_value_t* val)
 		val->f = cos(val->f);
 }
 
-inline void
+__always_inline void
 trigo_sin(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -19,7 +19,7 @@ trigo_sin(return_value_t* val)
 		val->f = sin(val->f);
 }
 
-inline void
+__always_inline void
 trigo_tan(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -28,7 +28,7 @@ trigo_tan(return_value_t* val)
 		val->f = tan(val->f);
 }
 
-inline void
+__always_inline void
 trigo_arccos(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -37,7 +37,7 @@ trigo_arccos(return_value_t* val)
 		val->f = acos(val->f);
 }
 
-inline void
+__always_inline void
 trigo_arcsin(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
@@ -46,7 +46,7 @@ trigo_arcsin(return_value_t* val)
 		val->f = asin(val->f);
 }
 
-inline void
+__always_inline void
 trigo_arctan(return_value_t* val)
 {
 	if (val->type == RET_COMPLEX)
