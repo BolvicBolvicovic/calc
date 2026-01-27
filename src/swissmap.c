@@ -97,7 +97,7 @@ swiss_djb2_hash(char* str)
 __always_inline s32
 swiss_strcmp_wrapper(char* s1, char* s2)
 {
-	return strcmp(s1, s2) == 0;
+	return s1 && s2 ? strcmp(s1, s2) == 0 : 0;
 }
 
 #ifdef TESTER
