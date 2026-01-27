@@ -4,13 +4,13 @@ A calculator for my journey as an embedded system engineer.
 
 ## Data Types
 
-There are three data types: floats, integers and complex.
-Type cast precedence: integer < float < complex.
+There are two data types: float and complex.
+Type cast precedence: float < complex.
 
 Complex numbers can be computed with the `I` value.
 
 There is no intention of extending the type system concerning the data itself.
-I do not want to build structures as data-layouts in the interpreter as it is a tool for math and not for programming.
+I do not want to build structures as data-layouts in the interpreter as it is a tool for math/physics and not for programming.
 
 However, the physics unit system enforces some kind of meta-type upon variables for certain operations.
 But it is a finite set of meta-types.
@@ -25,13 +25,7 @@ But it is a finite set of meta-types.
 - multiply operator `*`
 - power operator `^`
 
-**With intergers only**
-
-```
-calc> -5 + 5 * 8 / (5 ^ 6)
-```
-
-**With at least one float value**
+**A basic expression**
 
 ```
 // Note: Result is float.
@@ -42,7 +36,7 @@ calc> -5 + 5.5 * 8 / (5 ^ 6)
 
 ```
 // Note: This is correct
-calc> -5 + 5.5 * 8 / (5 ^ 6)
+calc>    -5+ 5.5 * 8 / (5 ^ 6)
 
 // Note: This too
 calc> -5+5.5*8/(5^6)
@@ -112,7 +106,8 @@ Orders of magnitude (OOMs) are subtypes that can affect a variable's value. They
 
 **Usage**
 
-OOMs can wrap any expression.
+OOMs can wrap any expression that does not result in a complex number.
+Giving an OOM to a complex number will not do anything to it.
 
 ```
 calc> milli(ampere(5)) * milli(volt(5))
@@ -206,37 +201,35 @@ Note that lists are internally linked lists. Accessing an element will be always
 
 ### Polynomials
 
+Note for each polynomial that the numbers in the list are considered as floats.
+If a complex number is passed to one of the function, it is *undefined behaviour*.
+The reason for this is that the user knows that these values are supposed to be Real and not Complex.
+If this turns out to be a problem, extensive checks will be added.
+The order of magnitude for each root is the base magnitude and the unit is undefined.
+
 #### `polynom_one(a, b)`
 
 `polynom_one` takes the two first elements of a list and solves the linear equation $ax + b = 0$.
 The returned value is a float.
-The smallest order of magnitude is chosen between `a` and `b`.
-The unit is undefined.
 
 #### `polynom_two(a, b, c)`
 
 `polynom_two` takes the three first elements of a list and solves the quadratic equation $ax^2 + bx + c = 0$.
 The returned value is a list with the 2 roots as floats.
-The smallest order of magnitude is chosen between `a`, `b` and `c`.
-The unit of the roots is undefined.
 
 #### `polynom_three(a, b, c, d)`
 
 `polynom_three` takes the four first elements of a list and solves the cubic equation $ax^3 + bx^2 + cx + d = 0$.
 The returned value is a list with the 3 roots as floats and/or complex.
-The order of magnitude is the base magnitude.
-The unit of the roots is undefined.
 
 #### `polynom_four(a, b, c, d, e)`
 
 `polynom_four` takes the five first elements of a list and solves the quartic equation $ax^4 + bx^3 + cx^2 + dx + e = 0$.
 The returned value is a list with the 4 roots as floats and/or complex.
-The order of magnitude is the base magnitude.
-The unit of the roots is undefined.
 
 ### Trigonometry
 
-They all return a float between 1 and -1.
+Handles complex numbers.
 
 - `cos(a)`
 - `arccos(a)`
@@ -249,11 +242,11 @@ They all return a float between 1 and -1.
 
 #### `sqrt(a)`
 
-Square root of a number. Returns a float.
+Square root of a number. Returns a float or a complex number.
 
 #### `cbrt(a)`
 
-Cube root of a number. Returns a float.
+Cube root of a number. Returns a float or a complex number.
 
 ### Constants
 

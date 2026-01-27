@@ -25,10 +25,10 @@ struct ast_node_t
 };
 
 ast_node_t*	parser_parse_expression(arena_t*, lexer_t*, s32 precedence);
-void		parser_print_preorder(ast_node_t* expr, s32 d);
 
 #ifdef TESTER
 
+void	parser_print_preorder(ast_node_t* expr, s32 d);
 void	test_parser_parse_expression(void);
 
 #endif // TESTER

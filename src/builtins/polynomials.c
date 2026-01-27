@@ -17,8 +17,8 @@ polynom_one(return_value_t* v)
 	if (v->next)
 		return_value_convert_oom(v->next, OOM_BASE);
 
-	f64	a = return_value_as_float(v);
-	f64	b = v->next ? -return_value_as_float(v->next) : 0;
+	f64	a = v->f;
+	f64	b = v->next ? -v->next->f : 0;
 
 	v->f	= b / a;
 	v->next	= 0;
@@ -34,12 +34,6 @@ polynom_two(arena_t* arena, return_value_t* v)
 	return_value_t*		a	= v;
 	return_value_t*		b	= v ? v->next : 0;
 	return_value_t*		c	= b ? b->next : 0;
-	order_of_magnetude_t	ma	= a ? a->oom : OOM_BASE;
-	order_of_magnetude_t	mb	= b ? b->oom : OOM_BASE;
-	order_of_magnetude_t	mc	= c ? c->oom : OOM_BASE;
-	order_of_magnetude_t	min	= ((ma ^ mb) & -(ma > mb)) ^ ma;
-
-	min = ((min ^ mc) & -(min > mc)) ^ min;
 
 	return_value_convert_oom(a, OOM_BASE);
 
@@ -49,9 +43,9 @@ polynom_two(arena_t* arena, return_value_t* v)
 	if (c)
 		return_value_convert_oom(c, OOM_BASE);
 
-	f64	af = a ? return_value_as_float(a) : 0;
-	f64	bf = b ? return_value_as_float(b) : 0;
-	f64	cf = c ? return_value_as_float(c) : 0;
+	f64	af = a ? a->f : 0;
+	f64	bf = b ? b->f : 0;
+	f64	cf = c ? c->f : 0;
 	f64	x1 = (-bf + sqrt(pow(bf, 2) - 4 * af * cf)) / (2 * af);
 	f64	x2 = (-bf - sqrt(pow(bf, 2) - 4 * af * cf)) / (2 * af);
 
@@ -66,9 +60,6 @@ polynom_two(arena_t* arena, return_value_t* v)
 	v->next->unit	= U_NONE;
 	v->next->token	= 0;
 	v->next->next	= 0;
-
-	return_value_convert_oom(v, min);
-	return_value_convert_oom(v->next, min);
 }
 	
 void
@@ -90,10 +81,10 @@ polynom_three(arena_t* arena, return_value_t* val)
 	if (d)
 		return_value_convert_oom(d, OOM_BASE);
 	
-	f64	af = a ? return_value_as_float(a) : 0;
-	f64	bf = b ? return_value_as_float(b) : 0;
-	f64	cf = c ? return_value_as_float(c) : 0;
-	f64	df = d ? return_value_as_float(d) : 0;
+	f64	af = a ? a->f : 0;
+	f64	bf = b ? b->f : 0;
+	f64	cf = c ? c->f : 0;
+	f64	df = d ? d->f : 0;
 
 	if (af == 0)
 	{
@@ -119,6 +110,21 @@ polynom_three(arena_t* arena, return_value_t* val)
 	double complex	x2	= y2 - bf / (af * 3);
 	double complex	x3	= y3 - bf / (af * 3);
 
+	val->next	= ARENA_PUSH_ARRAY(arena, return_value_t, 2);
+	val->next->next	= val->next + 1;
+
+	val->unit	= U_NONE;
+	val->oom	= OOM_BASE;
+
+	val->next->oom	= OOM_BASE;
+	val->next->unit	= U_NONE;
+	val->next->token= 0;
+
+	val->next->next->oom	= OOM_BASE;
+	val->next->next->unit	= U_NONE;
+	val->next->next->token	= 0;
+	val->next->next->next	= 0;
+
 	if (fabs(cimag(x1)) < EPS)
 	{
 		val->f		= x1;
@@ -129,9 +135,6 @@ polynom_three(arena_t* arena, return_value_t* val)
 		val->c		= x1;
 		val->type	= RET_COMPLEX;
 	}
-	val->unit	= U_NONE;
-	val->oom	= OOM_BASE;
-	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
 	if (fabs(cimag(x2)) < EPS)
 	{
@@ -143,10 +146,6 @@ polynom_three(arena_t* arena, return_value_t* val)
 		val->next->c	= x2;
 		val->next->type	= RET_COMPLEX;
 	}
-	val->next->oom	= OOM_BASE;
-	val->next->unit	= U_NONE;
-	val->next->token= 0;
-	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
 	if (fabs(cimag(x3)) < EPS)
 	{
@@ -158,10 +157,6 @@ polynom_three(arena_t* arena, return_value_t* val)
 		val->next->next->c	= x3;
 		val->next->next->type	= RET_COMPLEX;
 	}
-	val->next->next->oom	= OOM_BASE;
-	val->next->next->unit	= U_NONE;
-	val->next->next->token	= 0;
-	val->next->next->next	= 0;
 }
 
 // Credit for the algorithm: https://github.com/sasamil/Quartic/blob/master/quartic.cpp
@@ -188,11 +183,11 @@ polynom_four(arena_t* arena, return_value_t* val)
 	if (eval)
 		return_value_convert_oom(eval, OOM_BASE);
 	
-	f64	af = aval ? return_value_as_float(aval) : 0;
-	f64	bf = bval ? return_value_as_float(bval) : 0;
-	f64	cf = cval ? return_value_as_float(cval) : 0;
-	f64	df = dval ? return_value_as_float(dval) : 0;
-	f64	ef = eval ? return_value_as_float(eval) : 0;
+	f64	af = aval ? aval->f : 0;
+	f64	bf = bval ? bval->f : 0;
+	f64	cf = cval ? cval->f : 0;
+	f64	df = dval ? dval->f : 0;
+	f64	ef = eval ? eval->f : 0;
 
 	if (af == 0)
 	{
@@ -301,7 +296,6 @@ polynom_four(arena_t* arena, return_value_t* val)
 
 
 	double complex	x1, x2, x3, x4;
-	x1 = x2 = x3 = x4 = NAN;
 
 	// solving quadratic eq. - x^2 + p1*x + q1 = 0
 	D = p1*p1 - 4*q1;
@@ -333,6 +327,26 @@ polynom_four(arena_t* arena, return_value_t* val)
 		x4 = (-p2 - sqD)*0.5;
 	}
 
+	val->next		= ARENA_PUSH_ARRAY(arena, return_value_t, 3);
+	val->next->next		= val->next + 1;
+	val->next->next->next	= val->next + 2;
+
+	val->oom	= OOM_BASE;
+	val->unit	= U_NONE;
+
+	val->next->oom	= OOM_BASE;
+	val->next->unit	= U_NONE;
+	val->next->token= 0;
+
+	val->next->next->oom	= OOM_BASE;
+	val->next->next->unit	= U_NONE;
+	val->next->next->token	= 0;
+
+	val->next->next->next->oom	= OOM_BASE;
+	val->next->next->next->unit	= U_NONE;
+	val->next->next->next->token	= 0;
+	val->next->next->next->next	= 0;
+
 	if (fabs(cimag(x1)) < EPS)
 	{
 		val->f		= x1;
@@ -343,9 +357,6 @@ polynom_four(arena_t* arena, return_value_t* val)
 		val->c		= x1;
 		val->type	= RET_COMPLEX;
 	}
-	val->oom	= OOM_BASE;
-	val->unit	= U_NONE;
-	val->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
 	if (fabs(cimag(x2)) < EPS)
 	{
@@ -357,10 +368,6 @@ polynom_four(arena_t* arena, return_value_t* val)
 		val->next->c	= x2;
 		val->next->type	= RET_COMPLEX;
 	}
-	val->next->oom	= OOM_BASE;
-	val->next->unit	= U_NONE;
-	val->next->token= 0;
-	val->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 
 	if (fabs(cimag(x3)) < EPS)
 	{
@@ -372,10 +379,6 @@ polynom_four(arena_t* arena, return_value_t* val)
 		val->next->next->c	= x3;
 		val->next->next->type	= RET_COMPLEX;
 	}
-	val->next->next->oom	= OOM_BASE;
-	val->next->next->unit	= U_NONE;
-	val->next->next->token	= 0;
-	val->next->next->next	= ARENA_PUSH_STRUCT(arena, return_value_t);
 	
 	if (fabs(cimag(x4)) < EPS)
 	{
@@ -387,10 +390,6 @@ polynom_four(arena_t* arena, return_value_t* val)
 		val->next->next->next->c	= x4;
 		val->next->next->next->type	= RET_COMPLEX;
 	}
-	val->next->next->next->oom	= OOM_BASE;
-	val->next->next->next->unit	= U_NONE;
-	val->next->next->next->token	= 0;
-	val->next->next->next->next	= 0;
 }
 
 #ifdef TESTER

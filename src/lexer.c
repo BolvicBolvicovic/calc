@@ -5,130 +5,111 @@
 #include <assert.h>
 #include <string.h>
 
-static inline __attribute__((always_inline)) void
-lexer_skip_whitespaces(lexer_t* lexer)
-{
-	assert(lexer);
-
-	// TODO: Update so that newlines are a special case (i.e. a token limit)
-	while (lexer->buffer_idx < lexer->buffer_size
-		&& isspace(lexer->buffer[lexer->buffer_idx]))
-	{
-		if (lexer->buffer[lexer->buffer_idx] == '\n')
-			lexer->buffer_line++;
-
-		lexer->buffer_idx++;
-	}
-}
-
-
 static void
 lexer_stream(lexer_t* lexer)
 {
 	assert(lexer);
-
-	lexer_skip_whitespaces(lexer);
 	
-	lexer->stream[lexer->stream_idx].start	= lexer->buffer + lexer->buffer_idx;
-	lexer->stream[lexer->stream_idx].line	= lexer->buffer_line;
+	char*		buf = lexer->buffer;
+	u32		idx = lexer->buffer_idx;
+	const u32	size= lexer->buffer_size;
 
-	if (lexer->buffer_idx == lexer->buffer_size)
+	while (idx < size && isspace(buf[idx]))
+	{
+	// TODO: Update so that newlines are a special case (i.e. a token limit)
+		if (buf[idx] == '\n')
+			lexer->buffer_line++;
+
+		idx++;
+	}
+	
+	lexer->stream[lexer->stream_idx].start	= buf + idx;
+	lexer->stream[lexer->stream_idx].line	= lexer->buffer_line;
+	lexer->stream[lexer->stream_idx].length = 1;
+
+	if (idx == size)
 	{
 		lexer->stream[lexer->stream_idx].symbol = TK_EOI;
 		return;
 	}
-
-	switch (lexer->buffer[lexer->buffer_idx])
+	
+	lexer->buffer_idx = ++idx;
+	
+	switch (buf[idx - 1])
 	{
 	case '+':
 		lexer->stream[lexer->stream_idx].symbol = TK_ADD;
-		goto end_single_char;
+		return;
 	case '-':
 		lexer->stream[lexer->stream_idx].symbol = TK_SUB;
-		goto end_single_char;
+		return;
 	case '*':
 		lexer->stream[lexer->stream_idx].symbol = TK_MUL;
-		goto end_single_char;
+		return;
 	case '/':
 		lexer->stream[lexer->stream_idx].symbol = TK_DIV;
-		goto end_single_char;
+		return;
 	case '^':
 		lexer->stream[lexer->stream_idx].symbol = TK_POW;
-		goto end_single_char;
+		return;
 	case '(':
 		lexer->stream[lexer->stream_idx].symbol = TK_LP;
-		goto end_single_char;
+		return;
 	case ')':
 		lexer->stream[lexer->stream_idx].symbol = TK_RP;
-		goto end_single_char;
+		return;
 	case ',':
 		lexer->stream[lexer->stream_idx].symbol = TK_LIST;
-		goto end_single_char;
+		return;
 	case ':':
-		if (lexer->buffer_idx == lexer->buffer_size + 1
-			|| lexer->buffer[lexer->buffer_idx + 1] != ':')
+		if (idx == size || buf[idx] != ':')
 			break;
 
 		lexer->stream[lexer->stream_idx].symbol = TK_BIND;
 		lexer->stream[lexer->stream_idx].length = 2;
-		lexer->buffer_idx += 2;
+		lexer->buffer_idx++;
 		return;
 	}
 
-	//TODO: Make proper identifiers token
-	if (isalpha(lexer->buffer[lexer->buffer_idx])
-		|| lexer->buffer[lexer->buffer_idx] == '_')
+	if (isalpha(buf[idx - 1])
+		|| buf[idx - 1] == '_')
 	{
 		lexer->stream[lexer->stream_idx].symbol = TK_ID;
-		lexer->stream[lexer->stream_idx].length = 0;
 
-		while (isalpha(lexer->buffer[lexer->buffer_idx])
-			|| lexer->buffer[lexer->buffer_idx] == '_')
-		{
-			lexer->stream[lexer->stream_idx].length++;
-			lexer->buffer_idx++;
-		}
-
-		return;
-	}
-	
-	u32	dots = 0;
-	lexer->buffer_idx++;
-
-skip_numbers:
-	while (lexer->buffer_idx < lexer->buffer_size && isdigit(lexer->buffer[lexer->buffer_idx]))
-		lexer->buffer_idx++;
-
-	if (lexer->buffer[lexer->buffer_idx] == '.')
-	{
-		lexer->buffer_idx++;
-		dots++;
-		goto skip_numbers;
-	}
+		while (idx < size && (isalpha(buf[idx])
+			|| buf[idx] == '_'))
+			idx++;
 		
-	lexer->stream[lexer->stream_idx].length =
-		lexer->buffer + lexer->buffer_idx - lexer->stream[lexer->stream_idx].start;
+		lexer->stream[lexer->stream_idx].length	= idx - lexer->buffer_idx + 1;
+		lexer->buffer_idx			= idx;
+
+		return;
+	}
 	
-	switch (dots)
+	u32		dots= 0;
+
+	while (1)
 	{
-	case 0:
-		lexer->stream[lexer->stream_idx].symbol = TK_INT;
-		return;
-	case 1:
-		lexer->stream[lexer->stream_idx].symbol = TK_FLOAT;
-		return;
-	default:
-		goto errors;
+		while (idx < size && isdigit(buf[idx]))
+			idx++;
+
+		if (buf[idx] != '.')
+			break;
+		
+		idx++;
+		dots++;
 	}
 
-	// TODO: Check produced code to see if it does not do anything weird
-end_single_char:
-	lexer->stream[lexer->stream_idx].length = 1;
-	lexer->buffer_idx++;
-	return;
+	lexer->buffer_idx			= idx;
+	lexer->stream[lexer->stream_idx].length = buf + idx - lexer->stream[lexer->stream_idx].start;
+	
+	if (dots > 1)
+	{
+		lexer->stream[lexer->stream_idx].symbol = TK_ERR;
+		return;
+	}
 
-errors:
-	lexer->stream[lexer->stream_idx].symbol = TK_ERR;
+	lexer->stream[lexer->stream_idx].symbol = TK_FLOAT;
 	return;
 }
 
@@ -142,8 +123,6 @@ lexer_token_to_string(token_t* t)
 
 	case TK_FLOAT:
 		return "TK_FLOAT";
-	case TK_INT:
-		return "TK_INT";
 
 	case TK_ADD:
 		return "TK_ADD";
@@ -252,7 +231,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 	
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 5);
 	assert(token->length == 1);
 	assert(token->line == 1);
@@ -282,7 +261,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 17);
 	assert(token->length == 1);
 	assert(token->line == 1);
@@ -312,7 +291,7 @@ test_lexer_consume_token(void)
 	assert(token->line == 1);
 	
 	token = lexer_consume_token(&lexer);
-	assert(token->symbol == TK_INT);
+	assert(token->symbol == TK_FLOAT);
 	assert(token->start == test + 28);
 	assert(token->length == 1);
 	assert(token->line == 1);

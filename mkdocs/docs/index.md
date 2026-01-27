@@ -8,35 +8,41 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Ideas *(unordered)*
 
-- comments
-- autocomplete
+#### Math
+
 - dot product function
-- function declaration and usage
-- plot function
 - binary logic
-- use fixed number instead of float
+- plot function
 - make constant part of metadata OR use as a float/int
-- handle squared and square roots of units
-- improve user's error system
+
+#### Language Design
+
+- function declaration and usage
 - variables assignment: `x := 5`
-- lists dimensions (i.e. dim1: `(5, 6, 4, 5)`, dim2: `dim((5, 5, 8, 6), 2)`)
 - equations with the `=` operator
 - list operations
+- lists dimensions (i.e. dim1: `(5, 6, 4, 5)`, dim2: `dim((5, 5, 8, 6), 2)`)
+
+#### User Interface
+
+- comments
+- autocomplete
 - helper with short documentation
 - new_session helper that clears the variables map
+- improve user's error system
 
 ### Validated
 
-- optimization / deleting integer type
 - adding more physics units
 
 ### Refused
 
 - built-in print: no need since interpreter prints results. If a variable needs to be printed, just enter the variable and it will be printed. (Variables are not implemented yet).
+- use fixed number instead of float: slows down computation since it needs to work with complex numbers.
 
 ### In Development
 
-*NONE*
+- optimization / deleting integer type / documentation for swissmap
 
 ### Finished
 
@@ -46,7 +52,7 @@ List of all features that I thought about and that have been validated or not, i
 - product operator: `expr * expr`
 - division operator: `expr / expr`
 - pow operator: `expr ^ expr`
-- implicit type system (float / int)
+- implicit type system (float / complex)
 - identifiers
 - units
 - orders of magnetude
