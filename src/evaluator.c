@@ -409,118 +409,168 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			{
 			case 3:
 				if (memcmp("ohm", token_buf, 3) == 0)
+				{
 					return_value_convert_unit(ret, U_OHM);
+					return ret;
+				}
 				else if (memcmp("cos", token_buf, 3) == 0)
+				{
 					trigo_cos(ret);
+					return ret;
+				}
 				else if (memcmp("sin", token_buf, 3) == 0)
+				{
 					trigo_sin(ret);
+					return ret;
+				}
 				else if (memcmp("tan", token_buf, 3) == 0)
+				{
 					trigo_tan(ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 4:
 				if (memcmp("volt", token_buf, 4) == 0)
+				{
 					return_value_convert_unit(ret, U_VOLT);
+					return ret;
+				}
 				else if (memcmp("watt", token_buf, 4) == 0)
+				{
 					return_value_convert_unit(ret, U_WATT);
+					return ret;
+				}
 				else if (memcmp("nano", token_buf, 4) == 0)
+				{
 					return_value_convert_to_nano(ret);
+					return ret;
+				}
 				else if (memcmp("deci", token_buf, 4) == 0)
+				{
 					return_value_convert_to_deci(ret);
+					return ret;
+				}
 				else if (memcmp("sqrt", token_buf, 4) == 0)
+				{
 					roots_sqrt(ret);
+					return ret;
+				}
 				else if (memcmp("cbrt", token_buf, 4) == 0)
+				{
 					roots_cbrt(ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 5:
 				if (memcmp("micro", token_buf, 5) == 0)
+				{
 					return_value_convert_to_micro(ret);
+					return ret;
+				}
 				else if (memcmp("milli", token_buf, 5) == 0)
+				{
 					return_value_convert_to_milli(ret);
+					return ret;
+				}
 				else if (memcmp("centi", token_buf, 5) == 0)
+				{
 					return_value_convert_to_centi(ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 6:
 				if (memcmp("ampere", token_buf, 6) == 0)
+				{
 					return_value_convert_unit(ret, U_AMPERE);
+					return ret;
+				}
 				else if (memcmp("arccos", token_buf, 6) == 0)
+				{
 					trigo_arccos(ret);
+					return ret;
+				}
 				else if (memcmp("arcsin", token_buf, 6) == 0)
+				{
 					trigo_arcsin(ret);
+					return ret;
+				}
 				else if (memcmp("arctan", token_buf, 6) == 0)
+				{
 					trigo_arctan(ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 11:
 				if (memcmp("polynom_one", token_buf, 11) == 0)
+				{
 					polynom_one(ret);
+					return ret;
+				}
 				else if (memcmp("polynom_two", token_buf, 11) == 0)
+				{
 					polynom_two(arena, ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 12:
 				if (memcmp("polynom_four", token_buf, 12) == 0)
+				{
 					polynom_four(arena, ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 13:
 				if (memcmp("polynom_three", token_buf, 13) == 0)
+				{
 					polynom_three(arena, ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			case 14:
 				if (memcmp("base_magnitude", token_buf, 14) == 0)
+				{
 					return_value_convert_to_base(ret);
-				else
-					goto def1;
+					return ret;
+				}
 				break;
 			default:
-			def1:
-				return_value_t**	var = variables_map_get(vmap, token);
-				
-				if (!var || !*var)
-				{
-					ret->unit = U_UNKNOWN;
-					break;
-				}
-
-				s64		idx	= 0;
-				s64		i	= 0;
-				return_value_t*	tmp	= *var;
-
-				switch (ret->type)
-				{
-				case RET_FLOAT:
-					idx = (s64)ret->f;
-					break;
-				case RET_COMPLEX:
-					idx = (s64)creal(ret->c);
-					break;
-				default:
-				}
-
-				while (i < idx && tmp->next)
-				{
-					tmp = tmp->next;
-					i++;
-				}
-				
-				if (idx != i)
-					ret->type = RET_ERR;
-				else
-					memcpy(ret, tmp, sizeof(return_value_t));
-
-				ret->next = 0;
 			} // switch (node->token.length)
+
+			return_value_t**	var = variables_map_get(vmap, token);
+			
+			if (!var || !*var)
+			{
+				ret->unit = U_UNKNOWN;
+				break;
+			}
+
+			s64		idx	= 0;
+			s64		i	= 0;
+			return_value_t*	tmp	= *var;
+
+			switch (ret->type)
+			{
+			case RET_FLOAT:
+				idx = (s64)ret->f;
+				break;
+			case RET_COMPLEX:
+				idx = (s64)creal(ret->c);
+				break;
+			default:
+			}
+
+			while (i < idx && tmp->next)
+			{
+				tmp = tmp->next;
+				i++;
+			}
+			
+			if (idx != i)
+				ret->type = RET_ERR;
+			else
+				memcpy(ret, tmp, sizeof(return_value_t));
+
+			ret->next = 0;
 			
 			break;
 		}
@@ -534,29 +584,26 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				{
 					ret->type = RET_FLOAT;
 					ret->f = M_E;
+					return ret;
 				}
 				else if (*token_buf == 'I')
 				{
 					ret->type = RET_COMPLEX;
 					ret->c = I;
+					return ret;
 				}
-				else
-					goto def;
 				break;
 			case 2:
 				if (memcmp("PI", token_buf, 2) == 0)
 				{
 					ret->type = RET_FLOAT;
 					ret->f = M_PI;
+					return ret;
 				}
-				else
-					goto def;
 				break;
 			case 4:
 				if (memcmp("exit", token_buf, 4) == 0)
 					exit(0);
-				else
-					goto def;
 				break;
 			case 5:
 				if (memcmp("clear", token_buf, 5) == 0)
@@ -564,19 +611,16 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					printf("\033[2J\033[H");
 					return 0;
 				}
-				else
-					goto def;
 				break;
-			// Variables
 			default:
-			def:
-				return_value_t**	var = variables_map_get(vmap, token);
-				
-				if (var)
-					memcpy(ret, *var, sizeof(return_value_t));
-				else
-					ret->type = RET_BINDABLE;
 			}
+			// Variables
+			return_value_t**	var = variables_map_get(vmap, token);
+				
+			if (var)
+				memcpy(ret, *var, sizeof(return_value_t));
+			else
+				ret->type = RET_BINDABLE;
 		}
 
 		break;
