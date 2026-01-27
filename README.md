@@ -14,7 +14,7 @@ make
 ```
 
 This will compile and launch the interpreter by default.
-The only requirements are the libmath which should be installed by default and a gcc compiler.
+The only requirements are the libmath and libreadline which should be installed by default and a gcc compiler.
 
 ## Usage
 

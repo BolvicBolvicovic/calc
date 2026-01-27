@@ -33,7 +33,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-- adding more physics units
+*NONE*
 
 ### Refused
 
@@ -42,7 +42,8 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- optimization / deleting integer type / documentation for swissmap
+- adding more physics units
+- resistance addition in series / parallel
 
 ### Finished
 
@@ -60,7 +61,6 @@ List of all features that I thought about and that have been validated or not, i
 - variables binding operator: `literal_expr :: expr`
 - lists with the `,` operator
 - square/cube root
-- complex numbers
 - built-ins:  polynomials, trigo and cube/square roots
 - practical built-ins: exit, clear
 
