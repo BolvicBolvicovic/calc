@@ -94,6 +94,12 @@ evaluator_print_res_val(return_value_t* res)
 	{
 	case U_NONE:
 		break;
+	case U_JOULE:
+		printf(" joule");
+		break;
+	case U_SECOND:
+		printf(" second");
+		break;
 	case U_VOLT:
 		printf(" volt");
 		break;
@@ -477,6 +483,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					return_value_convert_to_centi(ret);
 					return ret;
 				}
+				else if (memcmp("joule", token_buf, 5) == 0)
+				{
+					return_value_convert_unit(ret, U_JOULE);
+					return ret;
+				}
 				break;
 			case 6:
 				if (memcmp("ampere", token_buf, 6) == 0)
@@ -499,6 +510,18 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					trigo_arctan(ret);
 					return ret;
 				}
+				else if (memcmp("second", token_buf, 6) == 0)
+				{
+					return_value_convert_unit(ret, U_SECOND);
+					return ret;
+				}
+				break;
+			case 7:
+				if (memcmp("current", token_buf, 7) == 0)
+				{
+					current(ret);
+					return ret;
+				}
 				break;
 			case 11:
 				if (memcmp("polynom_one", token_buf, 11) == 0)
@@ -511,11 +534,26 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					polynom_two(arena, ret);
 					return ret;
 				}
+				else if (memcmp("amp_divider", token_buf, 11) == 0)
+				{
+					current_divider(ret, U_AMPERE);
+					return ret;
+				}
 				break;
 			case 12:
 				if (memcmp("polynom_four", token_buf, 12) == 0)
 				{
 					polynom_four(arena, ret);
+					return ret;
+				}
+				else if (memcmp("res_parallel", token_buf, 12) == 0)
+				{
+					res_parallel(ret);
+					return ret;
+				}
+				else if (memcmp("volt_divider", token_buf, 12) == 0)
+				{
+					current_divider(ret, U_VOLT);
 					return ret;
 				}
 				break;
@@ -832,17 +870,48 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_NONE:
 				ret->unit = r->unit;
 				break;
+			case U_JOULE:
+				switch (r->unit)
+				{
+				case U_SECOND:
+					ret->unit = U_WATT;
+				case U_JOULE:
+					break;
+				case U_NONE:
+					ret->unit = U_JOULE;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
+				default:
+					ret->unit = U_UNSUPPORTED;
+				}
+				break;
+			case U_SECOND:
+				switch (r->unit)
+				{
+				case U_SECOND:
+					break;
+				case U_NONE:
+					ret->unit = U_SECOND;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
+				default:
+					ret->unit = U_UNSUPPORTED;
+				}
+				break;
 			case U_AMPERE:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_AMPERE:
 					break;
 				case U_NONE:
 					ret->unit = U_AMPERE;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
@@ -851,14 +920,13 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_OHM:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_OHM:
 					break;
 				case U_NONE:
 					ret->unit = U_OHM;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
@@ -867,10 +935,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_VOLT:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_AMPERE:
 					ret->unit = U_OHM;
 					break;
@@ -882,6 +946,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				case U_NONE:
 					ret->unit = U_VOLT;
 					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
 				}
@@ -889,10 +956,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_WATT:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_AMPERE:
 					ret->unit = U_VOLT;
 					break;
@@ -903,6 +966,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					break;
 				case U_NONE:
 					ret->unit = U_WATT;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
@@ -992,18 +1058,46 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_NONE:
 				ret->unit = r->unit;
 				break;
+			case U_JOULE:
+				switch (r->unit)
+				{
+				case U_NONE:
+					ret->unit = U_JOULE;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
+				default:
+					ret->unit = U_UNSUPPORTED;
+				}
+				break;
+			case U_SECOND:
+				switch (r->unit)
+				{
+				case U_WATT:
+					ret->unit = U_JOULE;
+					break;
+				case U_NONE:
+					ret->unit = U_SECOND;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
+				default:
+					ret->unit = U_UNSUPPORTED;
+				}
+				break;
 			case U_VOLT:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_AMPERE:
 					ret->unit = U_WATT;
 					break;
 				case U_NONE:
 					ret->unit = U_VOLT;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
@@ -1012,10 +1106,6 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_AMPERE:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_VOLT:
 					ret->unit = U_WATT;
 					break;
@@ -1025,6 +1115,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				case U_NONE:
 					ret->unit = U_AMPERE;
 					break;
+				case U_ERR:
+					ret->unit = r->unit;
+					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
 				}
@@ -1032,15 +1125,14 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_OHM:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
-					break;
 				case U_AMPERE:
 					ret->unit = U_VOLT;
 					break;
 				case U_NONE:
 					ret->unit = U_AMPERE;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;
@@ -1049,12 +1141,14 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			case U_WATT:
 				switch (r->unit)
 				{
-				case U_ERR:
-				case U_UNSUPPORTED:
-					ret->unit = r->unit;
+				case U_SECOND:
+					ret->unit = U_JOULE;
 					break;
 				case U_NONE:
 					ret->unit = U_WATT;
+					break;
+				case U_ERR:
+					ret->unit = r->unit;
 					break;
 				default:
 					ret->unit = U_UNSUPPORTED;

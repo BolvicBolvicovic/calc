@@ -8,12 +8,13 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Ideas *(unordered)*
 
-#### Math
+#### Math & Physics
 
 - dot product function
 - binary logic
 - plot function
 - make constant part of metadata OR use as a float/int
+- handle unkown conversion (i.e. watt/second)
 
 #### Language Design
 
@@ -29,7 +30,7 @@ List of all features that I thought about and that have been validated or not, i
 - autocomplete
 - helper with short documentation
 - new_session helper that clears the variables map
-- improve user's error system
+- improve user's error system: use `val->f` as the variable containing the error code and an enum for each error.
 
 ### Validated
 
@@ -42,8 +43,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- adding more physics units
-- resistance addition in series / parallel
+*NONE*
 
 ### Finished
 
@@ -55,13 +55,13 @@ List of all features that I thought about and that have been validated or not, i
 - pow operator: `expr ^ expr`
 - implicit type system (float / complex)
 - identifiers
-- units
+- units: volt, ampere, watt, ohm, joule, second
 - orders of magnetude
 - constants: `PI`, `E`, `I`
 - variables binding operator: `literal_expr :: expr`
 - lists with the `,` operator
-- square/cube root
-- built-ins:  polynomials, trigo and cube/square roots
+- maths built-ins: polynomials, trigo and cube/square roots
+- physics built-ins: current related calculators
 - practical built-ins: exit, clear
 
 ### Spotted issues
@@ -72,9 +72,8 @@ List of all features that I thought about and that have been validated or not, i
 
 - **Operators**: `+`, `-`, `/`, `^`, `::`, `*`
 - **Delimiters**: precedence `(` and `)`,
-- **floats**: with a dot (i.e. `2.5`)
-- **int**: without a dot (i.e. `5`)
-- **identifier**: string containg isalpha(char)
+- **floats**: with/without a dot (i.e. `2.5`, `-9`)
+- **identifier**: string containg isalpha(char) or `_` character
 
 ## Pratt Parser
 
