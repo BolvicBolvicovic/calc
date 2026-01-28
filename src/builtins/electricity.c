@@ -1,5 +1,6 @@
 #include <builtins.h>
 #include <math.h>
+#include <string.h>
 
 static inline f64
 current_formula(unit_t au, unit_t bu, unit_t cu, f64 a, f64 b)
@@ -108,4 +109,69 @@ current(return_value_t* val)
 
 	return_value_convert_oom(av, mag);
 	return_value_convert_oom(bv, mag);
+}
+
+void
+res_parallel(return_value_t* val)
+{
+	if (!val)
+		return;
+
+	return_value_convert_oom(val, OOM_BASE);
+
+	return_value_t* 	tmp = val->next;
+	order_of_magnetude_t	mag = val->oom;	
+	f64			acc = 1. / val->f;
+
+	while (tmp)
+	{
+		if (mag > tmp->oom)
+			mag = tmp->oom;
+
+		return_value_convert_oom(tmp, OOM_BASE);
+		acc += 1. / tmp->f;
+		tmp = tmp->next;
+	}
+	
+	val->next	= 0;
+	val->f		= 1 / acc;
+	val->unit	= U_OHM;
+
+	return_value_convert_oom(val, mag);
+}
+
+void
+current_divider(return_value_t* val, unit_t unit)
+{
+	if (!val || !val->next)
+		return;
+
+	return_value_convert_oom(val, OOM_BASE);
+
+	return_value_t* 	res 		= val->next;
+	order_of_magnetude_t	mag 		= val->oom;	
+	f64			unit_val	= val->f;
+	f64			res_total	= 0;
+
+	while (res)
+	{
+		if (mag > res->oom)
+			mag = res->oom;
+
+		return_value_convert_oom(res, OOM_BASE);
+		res_total += res->f;
+		res = res->next;
+	}
+
+	res = val->next;
+
+	while (res)
+	{
+		res->f		= unit_val * res->f / res_total;
+		res->unit	= unit;
+		return_value_convert_oom(res, mag);
+		res 		= res->next;
+	}
+	
+	memcpy(val, val->next, sizeof(return_value_t));
 }

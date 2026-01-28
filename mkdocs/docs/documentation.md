@@ -277,14 +277,59 @@ calc> I*I
 
 ## Physics Built-Ins
 
+All physics built-ins take floats as parameters.
+Special cases that work with complex numbers are stated in the related documentation.
+
 ### Electricity
 
-#### `current(a,b)` *(WIP)*
+#### `current(a,b)`
 
 Calculates all parameters missing parameters of the current based the two known parameters.
 `a` and `b` cannot have the same physics unit and must be either of unit `ohm`, `ampere`, `watt` or `volt`.
 The retunred value is a list containing the two missing parameters.
 On error, returns an error.
+
+```
+calc> current(volt(5), ampere(5))
+> (25 watt, 1 ohm)
+calc> current(watt(5), ohm(5))
+> (1 ampere, 5 volt)
+```
+
+#### `res_parallel(r1, r2, ..., rn)`
+
+Calculates the resistance for resistances that are in parallel in a circuit.
+The unit of each value is considered as `ohm` and is not checked.
+The return value is a single float of unit `ohm`.
+
+```
+calc> res_parallel(15, 87, 20)
+> 7.80269 ohm
+```
+
+#### `volt_divider(v, r1, r2, ..., rn)`
+
+Calculates the voltage drop for each resistances in series in a circuit.
+The unit of the first argument is considered as `volt`. 
+The unit of each other argument is considered as `ohm`.
+The return value is a list of floats of unit `volt` matching the resistances.
+
+```
+calc> volt_divider(15, 100, 50)
+> (10 volt, 5 volt)
+```
+
+#### `amp_divider(a, r1, r2, ..., rn)`
+
+Calculates the amps drop for each resistances in parallel in a circuit.
+The unit of the first argument is considered as `ampere`. 
+The unit of each other argument is considered as `ohm`.
+The return value is a list of floats of unit `ampere` matching the resistances.
+
+```
+calc> amp_divider(15, 100, 100)
+> (7.5 ampere, 7.5 ampere)
+```
 
 ## Other Built-Ins
 

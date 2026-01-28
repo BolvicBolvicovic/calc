@@ -518,11 +518,26 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					polynom_two(arena, ret);
 					return ret;
 				}
+				else if (memcmp("amp_divider", token_buf, 11) == 0)
+				{
+					current_divider(ret, U_AMPERE);
+					return ret;
+				}
 				break;
 			case 12:
 				if (memcmp("polynom_four", token_buf, 12) == 0)
 				{
 					polynom_four(arena, ret);
+					return ret;
+				}
+				else if (memcmp("res_parallel", token_buf, 12) == 0)
+				{
+					res_parallel(ret);
+					return ret;
+				}
+				else if (memcmp("volt_divider", token_buf, 12) == 0)
+				{
+					current_divider(ret, U_VOLT);
 					return ret;
 				}
 				break;
