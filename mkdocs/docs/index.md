@@ -38,8 +38,8 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Refused
 
-- built-in print: no need since interpreter prints results. If a variable needs to be printed, just enter the variable and it will be printed. (Variables are not implemented yet).
-- use fixed number instead of float: slows down computation since it needs to work with complex numbers.
+- built-in print: no need since interpreter prints results. If a variable needs to be printed, just enter the variable and it will be printed.
+- use fixed number instead of float: slows down computation since it needs to work with complex numbers and unnecessary precision in a physics context.
 
 ### In Development
 

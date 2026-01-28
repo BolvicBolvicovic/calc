@@ -13,18 +13,24 @@ cd calc
 make
 ```
 
-This will compile and launch the interpreter by default.
+It will compile and launch the interpreter by default.
 The only requirements are the libmath and libreadline which should be installed by default and a gcc compiler.
 
 ## Usage
 
 I have written an extensive documentation [here](./mkdocs/docs/documentation.md).
-Note that you can build the documentation and read it from your browser at [localhost:8000/documentation](http://localhost:8000/documentation).
+Note that you can build and read it from your browser at [localhost:8000/documentation](http://localhost:8000/documentation).
 
 ```bash
 make docs_serve
 ```
 
+## Testing
+
+Run `make tests`.
+It will create and run two binaries: one in debug mode, one optimize.
+
 ## Upcomming features
 
-Upcomming features and ideas are documented [here](.mkdocs/docs/index.md). You can also access it from your browser at [localhost:8000](http://localhost:8000).
+Upcomming features and ideas are documented [here](./mkdocs/docs/index.md).
+You can also access it from your browser at [localhost:8000](http://localhost:8000).
