@@ -30,6 +30,8 @@ enum unit_t
 	U_VOLT	= BIT1,
 	U_WATT	= BIT2,
 	U_OHM	= BIT3,
+	U_JOULE,
+	U_SECOND,
 
 	// Errors
 	U_ERR,

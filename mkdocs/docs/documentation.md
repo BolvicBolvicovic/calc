@@ -63,6 +63,8 @@ Example: **ampere * volt = watt**
 - ampere
 - ohm
 - watt
+- seconds
+- joule
 
 **Usage**
 
