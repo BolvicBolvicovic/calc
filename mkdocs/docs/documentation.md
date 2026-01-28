@@ -275,6 +275,17 @@ calc> I*I
 > -1
 ```
 
+## Physics Built-Ins
+
+### Electricity
+
+#### `current(a,b)` *(WIP)*
+
+Calculates all parameters missing parameters of the current based the two known parameters.
+`a` and `b` cannot have the same physics unit and must be either of unit `ohm`, `ampere`, `watt` or `volt`.
+The retunred value is a list containing the two missing parameters.
+On error, returns an error.
+
 ## Other Built-Ins
 
 ### `exit`

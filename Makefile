@@ -8,7 +8,7 @@ BFLAGS	= -O3 -Wno-override-init -march=native -fno-pie -no-pie
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
-SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c $(addprefix builtins/, polynomials.c roots.c trigo.c))
+SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c $(addprefix builtins/, polynomials.c roots.c trigo.c electricity.c))
 #OBJS	= $(SRCS:.c=.o)
 
 all: run

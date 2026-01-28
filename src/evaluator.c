@@ -500,6 +500,13 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 					return ret;
 				}
 				break;
+			case 7:
+				if (memcmp("current", token_buf, 7) == 0)
+				{
+					current(ret);
+					return ret;
+				}
+				break;
 			case 11:
 				if (memcmp("polynom_one", token_buf, 11) == 0)
 				{

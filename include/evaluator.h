@@ -5,6 +5,7 @@
 #include <swissmap.h>
 #include <arena.h>
 #include <complex.h>
+#include <bits.h>
 
 #define EPS	1e-13
 
@@ -24,10 +25,11 @@ enum unit_t
 	U_NONE,
 
 	// Actual units
-	U_AMPERE,
-	U_VOLT,
-	U_WATT,
-	U_OHM,
+#define U_CURRENT 0b1111
+	U_AMPERE= BIT0,
+	U_VOLT	= BIT1,
+	U_WATT	= BIT2,
+	U_OHM	= BIT3,
 
 	// Errors
 	U_ERR,

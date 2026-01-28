@@ -29,7 +29,7 @@ List of all features that I thought about and that have been validated or not, i
 - autocomplete
 - helper with short documentation
 - new_session helper that clears the variables map
-- improve user's error system
+- improve user's error system: use `val->f` as the variable containing the error code.
 
 ### Validated
 
@@ -44,6 +44,7 @@ List of all features that I thought about and that have been validated or not, i
 
 - adding more physics units
 - resistance addition in series / parallel
+- circuit calculator
 
 ### Finished
 
@@ -72,9 +73,8 @@ List of all features that I thought about and that have been validated or not, i
 
 - **Operators**: `+`, `-`, `/`, `^`, `::`, `*`
 - **Delimiters**: precedence `(` and `)`,
-- **floats**: with a dot (i.e. `2.5`)
-- **int**: without a dot (i.e. `5`)
-- **identifier**: string containg isalpha(char)
+- **floats**: with/without a dot (i.e. `2.5`, `-9`)
+- **identifier**: string containg isalpha(char) or `_` character
 
 ## Pratt Parser
 

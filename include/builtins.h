@@ -3,6 +3,8 @@
 
 #include <evaluator.h>
 
+// MATH
+
 // Polynomials
 
 void	polynom_one(return_value_t* v);
@@ -23,6 +25,12 @@ void	trigo_arctan(return_value_t* val);
 
 void	roots_sqrt(return_value_t* val);
 void	roots_cbrt(return_value_t* val);
+
+// PHYSICS
+
+// Electricity
+
+void	current(return_value_t* val);
 
 #ifdef TESTER
 
