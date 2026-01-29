@@ -34,8 +34,8 @@ typedef struct token_t token_t;
 struct token_t
 {
 	// Note: Space for 32 bits
-	symbol_t	symbol;
 	char*		start;
+	symbol_t	symbol;
 	u32		length;
 	u32		line;
 };
@@ -47,8 +47,8 @@ struct lexer_t
 	u32	buffer_idx;
 	u32	buffer_size;
 	u32	buffer_line;
+	s32	stream_idx;
 	token_t	stream[2];
-	s8	stream_idx;
 };
 
 token_t*	lexer_consume_token(lexer_t*);

@@ -30,7 +30,6 @@ List of all features that I thought about and that have been validated or not, i
 - autocomplete
 - helper with short documentation
 - new_session helper that clears the variables map
-- improve user's error system: use `val->f` as the variable containing the error code and an enum for each error.
 
 ### Validated
 
@@ -43,7 +42,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-*NONE*
+- improve user's error system: handle syntax error
 
 ### Finished
 
@@ -63,6 +62,7 @@ List of all features that I thought about and that have been validated or not, i
 - maths built-ins: polynomials, trigo and cube/square roots
 - physics built-ins: current related calculators
 - practical built-ins: exit, clear
+- errors as enums
 
 ### Spotted issues
 

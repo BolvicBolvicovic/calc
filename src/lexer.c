@@ -5,6 +5,24 @@
 #include <assert.h>
 #include <string.h>
 
+static __always_inline u32
+is_space(u8 c)
+{
+	return c == ' ' || (c - '\b') <= (u8)('\r' - '\b');
+}
+
+static __always_inline u32
+is_alpha(u8 c)
+{
+	return (u8)(c - 'a') <= ('z' - 'a') || (u8)(c - 'A') <= ('Z' - 'A');
+}
+
+static __always_inline u32
+is_digit(u8 c)
+{
+	return (u8)(c - '0') <= ('9' - '0');
+}
+
 static void
 lexer_stream(lexer_t* lexer)
 {
@@ -13,8 +31,9 @@ lexer_stream(lexer_t* lexer)
 	char*		buf = lexer->buffer;
 	u32		idx = lexer->buffer_idx;
 	const u32	size= lexer->buffer_size;
+	const u32	sidx= lexer->stream_idx;
 
-	while (idx < size && isspace(buf[idx]))
+	while (idx < size && is_space(buf[idx]))
 	{
 	// TODO: Update so that newlines are a special case (i.e. a token limit)
 		if (buf[idx] == '\n')
@@ -23,13 +42,13 @@ lexer_stream(lexer_t* lexer)
 		idx++;
 	}
 	
-	lexer->stream[lexer->stream_idx].start	= buf + idx;
-	lexer->stream[lexer->stream_idx].line	= lexer->buffer_line;
-	lexer->stream[lexer->stream_idx].length = 1;
+	lexer->stream[sidx].start	= buf + idx;
+	lexer->stream[sidx].line	= lexer->buffer_line;
+	lexer->stream[sidx].length	= 1;
 
 	if (idx == size)
 	{
-		lexer->stream[lexer->stream_idx].symbol = TK_EOI;
+		lexer->stream[sidx].symbol = TK_EOI;
 		return;
 	}
 	
@@ -38,50 +57,50 @@ lexer_stream(lexer_t* lexer)
 	switch (buf[idx - 1])
 	{
 	case '+':
-		lexer->stream[lexer->stream_idx].symbol = TK_ADD;
+		lexer->stream[sidx].symbol = TK_ADD;
 		return;
 	case '-':
-		lexer->stream[lexer->stream_idx].symbol = TK_SUB;
+		lexer->stream[sidx].symbol = TK_SUB;
 		return;
 	case '*':
-		lexer->stream[lexer->stream_idx].symbol = TK_MUL;
+		lexer->stream[sidx].symbol = TK_MUL;
 		return;
 	case '/':
-		lexer->stream[lexer->stream_idx].symbol = TK_DIV;
+		lexer->stream[sidx].symbol = TK_DIV;
 		return;
 	case '^':
-		lexer->stream[lexer->stream_idx].symbol = TK_POW;
+		lexer->stream[sidx].symbol = TK_POW;
 		return;
 	case '(':
-		lexer->stream[lexer->stream_idx].symbol = TK_LP;
+		lexer->stream[sidx].symbol = TK_LP;
 		return;
 	case ')':
-		lexer->stream[lexer->stream_idx].symbol = TK_RP;
+		lexer->stream[sidx].symbol = TK_RP;
 		return;
 	case ',':
-		lexer->stream[lexer->stream_idx].symbol = TK_LIST;
+		lexer->stream[sidx].symbol = TK_LIST;
 		return;
 	case ':':
 		if (idx == size || buf[idx] != ':')
 			break;
 
-		lexer->stream[lexer->stream_idx].symbol = TK_BIND;
-		lexer->stream[lexer->stream_idx].length = 2;
+		lexer->stream[sidx].symbol = TK_BIND;
+		lexer->stream[sidx].length = 2;
 		lexer->buffer_idx++;
 		return;
 	}
 
-	if (isalpha(buf[idx - 1])
+	if (is_alpha(buf[idx - 1])
 		|| buf[idx - 1] == '_')
 	{
-		lexer->stream[lexer->stream_idx].symbol = TK_ID;
+		lexer->stream[sidx].symbol = TK_ID;
 
-		while (idx < size && (isalpha(buf[idx])
+		while (idx < size && (is_alpha(buf[idx])
 			|| buf[idx] == '_'))
 			idx++;
 		
-		lexer->stream[lexer->stream_idx].length	= idx - lexer->buffer_idx + 1;
-		lexer->buffer_idx			= idx;
+		lexer->stream[sidx].length	= idx - lexer->buffer_idx + 1;
+		lexer->buffer_idx		= idx;
 
 		return;
 	}
@@ -90,7 +109,7 @@ lexer_stream(lexer_t* lexer)
 
 	while (1)
 	{
-		while (idx < size && isdigit(buf[idx]))
+		while (idx < size && is_digit(buf[idx]))
 			idx++;
 
 		if (buf[idx] != '.')

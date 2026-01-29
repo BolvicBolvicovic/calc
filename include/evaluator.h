@@ -36,7 +36,6 @@ enum unit_t
 	// Errors
 	U_ERR,
 	U_UNSUPPORTED,
-	U_UNKNOWN,
 };
 
 typedef enum order_of_magnetude_t	order_of_magnetude_t;
