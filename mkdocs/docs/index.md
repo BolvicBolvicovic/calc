@@ -42,7 +42,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- improve user's error system: handle syntax error
+*NONE*
 
 ### Finished
 
@@ -62,11 +62,23 @@ List of all features that I thought about and that have been validated or not, i
 - maths built-ins: polynomials, trigo and cube/square roots
 - physics built-ins: current related calculators
 - practical built-ins: exit, clear
-- errors as enums
+- errors as enums (err_code) in parser and evaluator (no errors in lexer)
 
 ### Spotted issues
 
-*NONE*
+**identifier used as values vs identifier used as built-ins**
+
+At the moment, it is possible to do that:
+
+```
+calc> current :: 4
+> 4
+calc> current(volt(current), ampere(current))
+> (16 watt, 1 ohm)
+```
+
+Since it is not possible to define equations or functions at the moment, this is not a big problem.
+It will naturally be taken care of when one of those constructs will be implemented.
 
 ## Lexer
 

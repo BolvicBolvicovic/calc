@@ -76,7 +76,7 @@ current(return_value_t* val)
 	if (!bv)
 	{
 		val->type	= RET_ERR;
-		val->f		= ERR_WRONG_ARG;
+		val->err_code	= ERR_WRONG_ARG;
 		val->next	= 0;
 		return;
 	}
@@ -87,7 +87,8 @@ current(return_value_t* val)
 	if (au == bu || au < U_AMPERE || au > U_OHM || bu < U_AMPERE || bu > U_OHM)
 	{
 		val->type	= RET_ERR;
-		val->f		= ERR_WRONG_ARG;
+		val->err_code	= ERR_WRONG_ARG;
+		val->next	= 0;
 		return;
 	}
 	
@@ -146,8 +147,16 @@ res_parallel(return_value_t* val)
 void
 current_divider(return_value_t* val, unit_t unit)
 {
-	if (!val || !val->next)
+	if (!val)
 		return;
+
+	if (!val->next)
+	{
+		val->type	= RET_ERR;
+		val->err_code	= ERR_WRONG_ARG;
+		val->next	= 0;
+		return;
+	}
 
 	return_value_convert_oom(val, OOM_BASE);
 

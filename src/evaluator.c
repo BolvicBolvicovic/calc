@@ -4,7 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <builtins.h>
-#include <errors.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -75,7 +74,7 @@ evaluator_print_res_val(return_value_t* res)
 		printf("%g + %gI", creal(res->c), cimag(res->c));
 		break;
 	case RET_ERR:
-		error_print(res);
+		error_print(res->token, res->err_code);
 		return;
 	default:
 		return;
@@ -395,16 +394,22 @@ evaluator_atof(token_t* token)
 return_value_t*
 evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
 {
-	assert(arena);
-	assert(node);
-
 	return_value_t*	ret = ARENA_PUSH_STRUCT(arena, return_value_t);
 	
-	ret->type	= RET_FLOAT;
 	ret->unit	= U_NONE;
 	ret->oom	= OOM_NONE;
-	ret->token	= &node->token;
 	ret->next	= 0;
+
+	if (!node)
+	{
+		ret->type	= RET_ERR;
+		ret->err_code	= ERR_MISSING_OPERATOR_ARGUMENT;
+		ret->token	= 0;
+		return ret;
+	}
+
+	ret->type	= RET_FLOAT;
+	ret->token	= &node->token;
 
 	token_t*	token		= &node->token;
 	const char*	token_buf	= token->start;
@@ -587,7 +592,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			if (!var || !*var)
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_UNKNOWN_FUNC;
+				ret->err_code	= ERR_UNKNOWN_FUNC;
 				return ret;
 			}
 
@@ -615,7 +620,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			if (idx != i)
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_OUT_OF_BOUND;
+				ret->err_code	= ERR_OUT_OF_BOUND;
 			}
 			else
 				memcpy(ret, tmp, sizeof(return_value_t));
@@ -690,7 +695,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			if (idx != i)
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_OUT_OF_BOUND;
+				ret->err_code	= ERR_OUT_OF_BOUND;
 				return ret;
 			}
 		}
@@ -708,7 +713,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			break;
 		default:
 			ret->type	= RET_ERR;
-			ret->f		= ERR_BINARY_OP_MISSING_LEFT;
+			ret->err_code	= ERR_BINARY_OP_MISSING_LEFT;
 			return ret;
 		}
 		break;
@@ -718,16 +723,16 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 		if (l->type == RET_ERR || r->type == RET_ERR)
 		{
-			ret->type	= RET_ERR;
-			ret->f		= l->type == RET_ERR ? l->f : r->f;
-			return ret;
+			l->token = &node->token;
+			r->token = &node->token;
+			return	l->type == RET_ERR ? l : r;
 		}
 
 		if (token->symbol != TK_BIND
 			&& (l->type == RET_BINDABLE  || r->type == RET_BINDABLE))
 		{
 			ret->type	= RET_ERR;
-			ret->f		= ERR_OPERATION_UNBOUND_VAR;
+			ret->err_code	= ERR_OPERATION_UNBOUND_VAR;
 			return ret;
 		}
 
@@ -751,7 +756,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			if (l->type == RET_BINDABLE && r->type == RET_BINDABLE)
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_OPERATION_UNBOUND_VAR;
+				ret->err_code	= ERR_OPERATION_UNBOUND_VAR;
 				return ret;
 			}
 			else if (l->type == RET_BINDABLE || r->type == RET_BINDABLE)
@@ -775,7 +780,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			else
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_BINDING_ALREADY_DEFINED;
+				ret->err_code	= ERR_BINDING_ALREADY_DEFINED;
 				return ret;
 			}
 
@@ -874,7 +879,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				|| (r->type == RET_COMPLEX && fabs(creal(r->c)) < EPS && fabs(cimag(r->c)) < EPS))
 			{
 				ret->type	= RET_ERR;
-				ret->f		= ERR_DIV_BY_ZERO;
+				ret->err_code	= ERR_DIV_BY_ZERO;
 				return ret;
 			}
 
@@ -1214,10 +1219,12 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			break;
 		default:
 			ret->type	= RET_ERR;
-			ret->f		= ERR_TOKEN_IS_NOT_BIN_OP;
+			ret->err_code	= ERR_TOKEN_IS_NOT_BIN_OP;
 		} // switch (node->token.symbol)
 		break;
-	default:
+	case EXPR_ERR:
+		ret->type	= RET_ERR;
+		ret->err_code	= node->err_code;
 	} // switch (node->type)
 
 	return ret;

@@ -1,7 +1,7 @@
 #ifndef ERRORS_H
 #define ERRORS_H
 
-#include <evaluator.h>
+#include <lexer.h>
 
 typedef enum error_code_t error_code_t;
 enum error_code_t
@@ -14,8 +14,10 @@ enum error_code_t
 	ERR_BINDING_ALREADY_DEFINED,
 	ERR_TOKEN_IS_NOT_BIN_OP,
 	ERR_OPERATION_UNBOUND_VAR,
+	ERR_MISSING_CLOSING_PARENTHESIS,
+	ERR_MISSING_OPERATOR_ARGUMENT,
 };
 
-void	error_print(return_value_t* err);
+void	error_print(token_t* err, error_code_t code);
 
 #endif

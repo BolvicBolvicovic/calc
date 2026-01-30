@@ -27,7 +27,6 @@ enum __attribute__((mode(SI))) symbol_t
 
 	// End Of Input
 	TK_EOI,
-	TK_ERR
 };
 
 typedef struct token_t token_t;

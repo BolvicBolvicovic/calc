@@ -58,10 +58,13 @@ parser_parse_prefix(arena_t* arena, lexer_t* lexer)
 		break;
 	case TK_LP:
 		lexer_consume_token(lexer);
-		node = parser_parse_expression(arena, lexer, 0);
-		token= lexer_consume_token(lexer);
-		// TODO: think of a more user friendly way to handle this
-		assert(token->symbol == TK_RP);
+		node 		= parser_parse_expression(arena, lexer, 0);
+
+		if (!(TK_RP == lexer_consume_token(lexer)->symbol))
+		{
+			node->type	= EXPR_ERR;
+			node->err_code	= ERR_MISSING_CLOSING_PARENTHESIS;
+		}
 		break;
 	case TK_SUB:
 		node = ARENA_PUSH_STRUCT(arena, ast_node_t);
@@ -70,10 +73,6 @@ parser_parse_prefix(arena_t* arena, lexer_t* lexer)
 		ast_node_t*	operand = parser_parse_expression(arena, lexer, 100);
 
 		node->left = operand;
-		break;
-	case TK_ERR:
-		// TODO: think of a more user friendly way to handle this
-		assert(token->symbol != TK_ERR);
 		break;
 	default:
 	}
@@ -105,8 +104,11 @@ parser_parse_infix(arena_t* arena, lexer_t* lexer, ast_node_t* left)
 		lexer_consume_token(lexer);
 		left->left = parser_parse_expression(arena, lexer, 0);
 		node = left;
-		// TODO: think of a more user friendly way to handle this
-		assert(TK_RP == lexer_consume_token(lexer)->symbol);
+		if (!(TK_RP == lexer_consume_token(lexer)->symbol))
+		{
+			node->type	= EXPR_ERR;
+			node->err_code	= ERR_MISSING_CLOSING_PARENTHESIS;
+		}
 		break;
 	default:
 		node = ARENA_PUSH_STRUCT(arena, ast_node_t);

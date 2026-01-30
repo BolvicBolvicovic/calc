@@ -90,7 +90,8 @@ polynom_three(arena_t* arena, return_value_t* val)
 	if (af == 0)
 	{
 		val->type	= RET_ERR;
-		val->f		= ERR_DIV_BY_ZERO;
+		val->err_code	= ERR_DIV_BY_ZERO;
+		val->next	= 0;
 		return;
 	}
 
@@ -194,7 +195,8 @@ polynom_four(arena_t* arena, return_value_t* val)
 	if (af == 0)
 	{
 		val->type	= RET_ERR;
-		val->f		= ERR_DIV_BY_ZERO;
+		val->err_code	= ERR_DIV_BY_ZERO;
+		val->next	= 0;
 		return;
 	}
 

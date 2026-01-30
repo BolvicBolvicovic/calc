@@ -105,30 +105,20 @@ lexer_stream(lexer_t* lexer)
 		return;
 	}
 	
-	u32		dots= 0;
 
-	while (1)
+	while (idx < size && is_digit(buf[idx]))
+		idx++;
+
+	if (buf[idx] == '.')
 	{
+		idx++;
 		while (idx < size && is_digit(buf[idx]))
 			idx++;
-
-		if (buf[idx] != '.')
-			break;
-		
-		idx++;
-		dots++;
 	}
 
-	lexer->buffer_idx			= idx;
-	lexer->stream[lexer->stream_idx].length = buf + idx - lexer->stream[lexer->stream_idx].start;
-	
-	if (dots > 1)
-	{
-		lexer->stream[lexer->stream_idx].symbol = TK_ERR;
-		return;
-	}
-
-	lexer->stream[lexer->stream_idx].symbol = TK_FLOAT;
+	lexer->buffer_idx		= idx;
+	lexer->stream[sidx].length	= buf + idx - lexer->stream[sidx].start;
+	lexer->stream[sidx].symbol	= TK_FLOAT;
 	return;
 }
 
@@ -165,8 +155,6 @@ lexer_token_to_string(token_t* t)
 
 	case TK_EOI:
 		return "TK_EOI";
-	case TK_ERR:
-		return "TK_ERR";
 	}
 
 	return "";
