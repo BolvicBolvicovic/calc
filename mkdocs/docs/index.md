@@ -80,6 +80,16 @@ calc> current(volt(current), ampere(current))
 Since it is not possible to define equations or functions at the moment, this is not a big problem.
 It will naturally be taken care of when one of those constructs will be implemented.
 
+**empty parenthesis**
+
+```
+calc> 1 + () 5
+> Error at line 1 here ->+ () 5: Missing operator's argument
+```
+
+I don't know if I want it to be a typo error or just an empty object that can be skipped.
+The main reason is that I might want to be able to write that `clear()` instead of the current `clear`.
+
 ## Lexer
 
 - **Operators**: `+`, `-`, `/`, `^`, `::`, `*`
