@@ -18,9 +18,7 @@ List of all features that I thought about and that have been validated or not, i
 
 #### Language Design
 
-- function declaration and usage
 - variables assignment: `x := 5`
-- equations with the `=` operator
 - list operations
 - lists dimensions (i.e. dim1: `(5, 6, 4, 5)`, dim2: `dim((5, 5, 8, 6), 2)`)
 
@@ -33,12 +31,13 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-*NONE*
+- function declaration and usage: implicit argument (i.e. literals that start with `_`) create lambda functions that can be bound to a literal name (i.e. `circle :: 2*PI*_R`). A call would use the `:` operator to temporary define a value for `_R` (i.e. `circle(_R:5)`).
 
 ### Refused
 
 - built-in print: no need since interpreter prints results. If a variable needs to be printed, just enter the variable and it will be printed.
 - use fixed number instead of float: slows down computation since it needs to work with complex numbers and unnecessary precision in a physics context.
+- equations with the `=` operator: `=` should be reserved for the binary equality.
 
 ### In Development
 
