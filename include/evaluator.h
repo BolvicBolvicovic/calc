@@ -6,6 +6,7 @@
 #include <arena.h>
 #include <complex.h>
 #include <bits.h>
+#include <errors.h>
 
 #define EPS	1e-13
 
@@ -36,7 +37,6 @@ enum unit_t
 	// Errors
 	U_ERR,
 	U_UNSUPPORTED,
-	U_UNKNOWN,
 };
 
 typedef enum order_of_magnetude_t	order_of_magnetude_t;
@@ -59,8 +59,9 @@ struct return_value_t
 {
 	union
 	{
-		f64	f;
-		complex	c;
+		f64		f;
+		complex		c;
+		error_code_t	err_code;
 	};
 	return_t		type;
 	unit_t			unit;

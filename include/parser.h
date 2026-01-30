@@ -4,6 +4,7 @@
 #include <c_types.h>
 #include <lexer.h>
 #include <arena.h>
+#include <errors.h>
 
 typedef enum expr_t expr_t;
 enum expr_t
@@ -20,7 +21,11 @@ struct ast_node_t
 {
 	expr_t		type;
 	token_t		token;
-	ast_node_t*	left;
+	union
+	{
+		ast_node_t*	left;
+		error_code_t	err_code;
+	};
 	ast_node_t*	right;
 };
 

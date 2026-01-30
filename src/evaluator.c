@@ -42,12 +42,22 @@ evaluator_hash_memcmp(token_t* t1, token_t* t2)
 static inline u64
 evaluator_hash(token_t* t)
 {
-	const char*	buf = t->start;
-	u64		len = t->length;
+	const u8*	buf = (const u8*)t->start;
+	const u8*	end = buf + t->length;
 	u64		hash= 5381;
 
-	for (u64 i = 0; i < len; i++)
-		hash = ((hash << 5) + hash) + buf[i];
+	while (buf + 4 <= end)
+	{
+		hash = ((hash << 5) + hash) + buf[0];
+		hash = ((hash << 5) + hash) + buf[1];
+		hash = ((hash << 5) + hash) + buf[2];
+		hash = ((hash << 5) + hash) + buf[3];
+
+		buf += 4;
+	}
+
+	while (buf < end)
+		hash = ((hash << 5) + hash) + *buf++;
 
 	return hash;
 }
@@ -64,7 +74,7 @@ evaluator_print_res_val(return_value_t* res)
 		printf("%g + %gI", creal(res->c), cimag(res->c));
 		break;
 	case RET_ERR:
-		printf("Error while evaluating expression");
+		error_print(res->token, res->err_code);
 		return;
 	default:
 		return;
@@ -114,9 +124,6 @@ evaluator_print_res_val(return_value_t* res)
 		break;
 	case U_UNSUPPORTED:
 		printf(" unsupported unit");
-		break;
-	case U_UNKNOWN:
-		printf(" unknown function");
 		break;
 	case U_ERR:
 		printf(" erronous unit");
@@ -387,16 +394,22 @@ evaluator_atof(token_t* token)
 return_value_t*
 evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
 {
-	assert(arena);
-	assert(node);
-
 	return_value_t*	ret = ARENA_PUSH_STRUCT(arena, return_value_t);
 	
-	ret->type	= RET_FLOAT;
 	ret->unit	= U_NONE;
 	ret->oom	= OOM_NONE;
-	ret->token	= &node->token;
 	ret->next	= 0;
+
+	if (!node)
+	{
+		ret->type	= RET_ERR;
+		ret->err_code	= ERR_MISSING_OPERATOR_ARGUMENT;
+		ret->token	= 0;
+		return ret;
+	}
+
+	ret->type	= RET_FLOAT;
+	ret->token	= &node->token;
 
 	token_t*	token		= &node->token;
 	const char*	token_buf	= token->start;
@@ -578,8 +591,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			
 			if (!var || !*var)
 			{
-				ret->unit = U_UNKNOWN;
-				break;
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_UNKNOWN_FUNC;
+				return ret;
 			}
 
 			s64		idx	= 0;
@@ -604,7 +618,10 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			}
 			
 			if (idx != i)
-				ret->type = RET_ERR;
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_OUT_OF_BOUND;
+			}
 			else
 				memcpy(ret, tmp, sizeof(return_value_t));
 
@@ -663,18 +680,10 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 		break;
 	case EXPR_CONST:
-		switch (token->symbol)
-		{
-		case TK_FLOAT:
-			ret->type = RET_FLOAT;
-			ret->f = evaluator_atof(token);
-			break;
-		default:
-			ret->type = RET_ERR;
-			break;
-		}
+		ret->type	= RET_FLOAT;
+		ret->f		= evaluator_atof(token);
 		
-		if (node->left && ret->type != RET_ERR)
+		if (node->left)
 		{
 			s64	idx	= (s64)ret->f;
 			s64	i	= 0;
@@ -684,7 +693,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			for (; i < idx && ret->next; i++, ret = ret->next);
 			
 			if (idx != i)
-				ret->type = RET_ERR;
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_OUT_OF_BOUND;
+				return ret;
+			}
 		}
 		break;
 	case EXPR_UOP:
@@ -699,8 +712,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				ret->c = -ret->c;
 			break;
 		default:
-			ret->type = RET_ERR;
-			break;
+			ret->type	= RET_ERR;
+			ret->err_code	= ERR_BINARY_OP_MISSING_LEFT;
+			return ret;
 		}
 		break;
 	case EXPR_BOP:
@@ -709,9 +723,19 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 
 		if (l->type == RET_ERR || r->type == RET_ERR)
 		{
-			ret->type = RET_ERR;
-			break;
+			l->token = &node->token;
+			r->token = &node->token;
+			return	l->type == RET_ERR ? l : r;
 		}
+
+		if (token->symbol != TK_BIND
+			&& (l->type == RET_BINDABLE  || r->type == RET_BINDABLE))
+		{
+			ret->type	= RET_ERR;
+			ret->err_code	= ERR_OPERATION_UNBOUND_VAR;
+			return ret;
+		}
+
 		
 		if (l->type == RET_COMPLEX || r->type == RET_COMPLEX)
 			ret->type = RET_COMPLEX;
@@ -729,7 +753,13 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			ret = l;
 			break;
 		case TK_BIND:
-			if (l->type == RET_BINDABLE || r->type == RET_BINDABLE)
+			if (l->type == RET_BINDABLE && r->type == RET_BINDABLE)
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_OPERATION_UNBOUND_VAR;
+				return ret;
+			}
+			else if (l->type == RET_BINDABLE || r->type == RET_BINDABLE)
 			{
 				return_value_t*	var	= l->type == RET_BINDABLE ? l : r;
 				return_value_t*	val	= l->type != RET_BINDABLE ? l : r;
@@ -748,7 +778,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				ret = val;
 			}
 			else
-				ret->type = RET_ERR;
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_BINDING_ALREADY_DEFINED;
+				return ret;
+			}
 
 			break;
 		case TK_ADD:
@@ -844,8 +878,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			if ((r->type == RET_FLOAT && fabs(r->f) < EPS)
 				|| (r->type == RET_COMPLEX && fabs(creal(r->c)) < EPS && fabs(cimag(r->c)) < EPS))
 			{
-				ret->type = RET_ERR;
-				break;
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_DIV_BY_ZERO;
+				return ret;
 			}
 
 			order_of_magnetude_t	m_div = OOM_NONE;
@@ -1181,14 +1216,15 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 				break;
 			default:
 			}
-			
 			break;
 		default:
-			ret->type = RET_ERR;
-			break;
+			ret->type	= RET_ERR;
+			ret->err_code	= ERR_TOKEN_IS_NOT_BIN_OP;
 		} // switch (node->token.symbol)
 		break;
-	default:
+	case EXPR_ERR:
+		ret->type	= RET_ERR;
+		ret->err_code	= node->err_code;
 	} // switch (node->type)
 
 	return ret;
@@ -1336,7 +1372,7 @@ test_evaluate_binding(void)
 	return_value_t*	res	= 0;
 
 	char*	test7	= "x :: 10";
-	token_t	x	= { TK_ID, test7, 1, 1 };
+	token_t	x	= { test7, TK_ID, 1, 1 };
 
 	lexer_init(&lexer, test7, 7);
 
@@ -1374,7 +1410,7 @@ test_evaluate_binding(void)
 	assert(res->oom == OOM_NONE);
 
 	char*	test10	= "5 :: y";
-	token_t	y	= { TK_ID, test10 + 5, 1, 1 };
+	token_t	y	= { test10 + 5, TK_ID, 1, 1 };
 
 	lexer_init(&lexer, test10, 6);
 
@@ -1436,7 +1472,7 @@ test_evaluate_list(void)
 	assert(res->next->next->oom == OOM_NONE);
 
 	char*	test2	= "x :: (1, 2, 3)";
-	token_t	x	= { TK_ID, test2, 1, 1 };
+	token_t	x	= { test2, TK_ID, 1, 1 };
 
 	lexer_init(&lexer, test2, 14);
 

@@ -1,6 +1,7 @@
 #include <builtins.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <errors.h>
 
 void
 polynom_one(return_value_t* v)
@@ -88,7 +89,9 @@ polynom_three(arena_t* arena, return_value_t* val)
 
 	if (af == 0)
 	{
-		val->type = RET_ERR;
+		val->type	= RET_ERR;
+		val->err_code	= ERR_DIV_BY_ZERO;
+		val->next	= 0;
 		return;
 	}
 
@@ -191,7 +194,9 @@ polynom_four(arena_t* arena, return_value_t* val)
 
 	if (af == 0)
 	{
-		val->type = RET_ERR;
+		val->type	= RET_ERR;
+		val->err_code	= ERR_DIV_BY_ZERO;
+		val->next	= 0;
 		return;
 	}
 

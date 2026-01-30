@@ -30,7 +30,6 @@ List of all features that I thought about and that have been validated or not, i
 - autocomplete
 - helper with short documentation
 - new_session helper that clears the variables map
-- improve user's error system: use `val->f` as the variable containing the error code and an enum for each error.
 
 ### Validated
 
@@ -63,10 +62,33 @@ List of all features that I thought about and that have been validated or not, i
 - maths built-ins: polynomials, trigo and cube/square roots
 - physics built-ins: current related calculators
 - practical built-ins: exit, clear
+- errors as enums (err_code) in parser and evaluator (no errors in lexer)
 
 ### Spotted issues
 
-*NONE*
+**identifier used as values vs identifier used as built-ins**
+
+At the moment, it is possible to do that:
+
+```
+calc> current :: 4
+> 4
+calc> current(volt(current), ampere(current))
+> (16 watt, 1 ohm)
+```
+
+Since it is not possible to define equations or functions at the moment, this is not a big problem.
+It will naturally be taken care of when one of those constructs will be implemented.
+
+**empty parenthesis**
+
+```
+calc> 1 + () 5
+> Error at line 1 here ->+ () 5: Missing operator's argument
+```
+
+I don't know if I want it to be a typo error or just an empty object that can be skipped.
+The main reason is that I might want to be able to write that `clear()` instead of the current `clear`.
 
 ## Lexer
 

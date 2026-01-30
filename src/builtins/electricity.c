@@ -1,6 +1,7 @@
 #include <builtins.h>
 #include <math.h>
 #include <string.h>
+#include <errors.h>
 
 static inline f64
 current_formula(unit_t au, unit_t bu, unit_t cu, f64 a, f64 b)
@@ -74,8 +75,9 @@ current(return_value_t* val)
 
 	if (!bv)
 	{
-		val->type = RET_ERR;
-		val->next = 0;
+		val->type	= RET_ERR;
+		val->err_code	= ERR_WRONG_ARG;
+		val->next	= 0;
 		return;
 	}
 
@@ -84,7 +86,9 @@ current(return_value_t* val)
 
 	if (au == bu || au < U_AMPERE || au > U_OHM || bu < U_AMPERE || bu > U_OHM)
 	{
-		val->type = RET_ERR;
+		val->type	= RET_ERR;
+		val->err_code	= ERR_WRONG_ARG;
+		val->next	= 0;
 		return;
 	}
 	
@@ -143,8 +147,16 @@ res_parallel(return_value_t* val)
 void
 current_divider(return_value_t* val, unit_t unit)
 {
-	if (!val || !val->next)
+	if (!val)
 		return;
+
+	if (!val->next)
+	{
+		val->type	= RET_ERR;
+		val->err_code	= ERR_WRONG_ARG;
+		val->next	= 0;
+		return;
+	}
 
 	return_value_convert_oom(val, OOM_BASE);
 
