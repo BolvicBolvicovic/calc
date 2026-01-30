@@ -149,9 +149,9 @@ but since it is a calculator, I do not think that assignment is as meaningfull.
 We are not looking for performance on the frontend, just some math.
 However, I have not refused the idea and I am still thinking about it.
 
-### Binding operator `::`
+### Binding operators `::` and `:`
 
-Variables are bound to values with the binding opereator `::`.
+Global variables are bound to values with the global binding opereator `::`.
 
 ```
 calc> x :: milli(watt(5))
@@ -160,13 +160,23 @@ calc> x + 5
 > 10 milli watt
 ```
 
-Note that the binding operator has the smallest precedence and can be used on both ways.
+Note that the global binding operator has the smallest precedence and can be used on both ways.
 
 ```
 // This is also a valid syntax
 calc> milli(watt(5)) :: x
 > 5 milli watt
 ```
+
+Temporary variables are bound to values with the temporary binding opereator `:`.
+
+```
+calc> (c : 5) + c
+> 10
+calc> c * c
+> Error at line 1 here ->* c: Operation with unbound variable not allowed
+```
+
 
 ## Lists
 

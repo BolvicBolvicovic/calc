@@ -18,6 +18,7 @@ enum __attribute__((mode(SI))) symbol_t
 	TK_DIV,
 	TK_MUL,
 	TK_POW,
+	TK_TMP_BIND,
 	TK_BIND,
 	TK_LIST,
 

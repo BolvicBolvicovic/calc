@@ -75,7 +75,7 @@ SWISSMAP_DECLARE_FUNCTIONS(variables_map, token_t*, return_value_t*)
 
 f64		return_value_as_float(return_value_t* v);
 void		return_value_convert_oom(return_value_t* v, order_of_magnetude_t oom);
-return_value_t*	evaluate(arena_t*, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
+return_value_t*	evaluate(arena_t*, variables_map* tmp, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
 void		evaluator_print_res(return_value_t* res);
 
 #ifdef TESTER

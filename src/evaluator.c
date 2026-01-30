@@ -392,7 +392,7 @@ evaluator_atof(token_t* token)
 }
 
 return_value_t*
-evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
+evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
 {
 	return_value_t*	ret = ARENA_PUSH_STRUCT(arena, return_value_t);
 	
@@ -422,7 +422,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		if (node->left)
 		{
 			// Built-in or function
-			ret = evaluate(arena, node->left, arena_vmap, vmap);
+			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 
 			switch (token_len)
 			{
@@ -590,6 +590,9 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			return_value_t**	var = variables_map_get(vmap, token);
 			
 			if (!var || !*var)
+				var = variables_map_get(vmap_tmp, token);
+
+			if (!var || !*var)
 			{
 				ret->type	= RET_ERR;
 				ret->err_code	= ERR_UNKNOWN_FUNC;
@@ -671,8 +674,11 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			}
 			// Variables
 			return_value_t**	var = variables_map_get(vmap, token);
+			
+			if (!var || !*var)
+				var = variables_map_get(vmap_tmp, token);
 				
-			if (var)
+			if (var && *var)
 				memcpy(ret, *var, sizeof(return_value_t));
 			else
 				ret->type = RET_BINDABLE;
@@ -688,7 +694,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			s64	idx	= (s64)ret->f;
 			s64	i	= 0;
 
-			ret = evaluate(arena, node->left, arena_vmap, vmap);
+			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 
 			for (; i < idx && ret->next; i++, ret = ret->next);
 			
@@ -704,7 +710,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		switch (token->symbol)
 		{
 		case TK_SUB:
-			ret = evaluate(arena, node->left, arena_vmap, vmap);
+			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 
 			if (ret->type == RET_FLOAT)
 				ret->f = -ret->f;
@@ -718,8 +724,8 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 		}
 		break;
 	case EXPR_BOP:
-		return_value_t*	l = evaluate(arena, node->left, arena_vmap, vmap);
-		return_value_t* r = evaluate(arena, node->right, arena_vmap, vmap);
+		return_value_t*	l = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
+		return_value_t* r = evaluate(arena, vmap_tmp, node->right, arena_vmap, vmap);
 
 		if (l->type == RET_ERR || r->type == RET_ERR)
 		{
@@ -728,7 +734,7 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 			return	l->type == RET_ERR ? l : r;
 		}
 
-		if (token->symbol != TK_BIND
+		if (token->symbol != TK_BIND && token->symbol != TK_TMP_BIND
 			&& (l->type == RET_BINDABLE  || r->type == RET_BINDABLE))
 		{
 			ret->type	= RET_ERR;
@@ -775,6 +781,35 @@ evaluate(arena_t* arena, ast_node_t* node, arena_t* arena_vmap, variables_map* v
 								arena_vmap, return_value_t);
 				evaluator_memcpy_value(arena_vmap, mapped_val, val);
 				variables_map_put(vmap, tok, mapped_val);
+				ret = val;
+			}
+			else
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_BINDING_ALREADY_DEFINED;
+				return ret;
+			}
+		case TK_TMP_BIND:
+			if (l->type == RET_BINDABLE && r->type == RET_BINDABLE)
+			{
+				ret->type	= RET_ERR;
+				ret->err_code	= ERR_OPERATION_UNBOUND_VAR;
+				return ret;
+			}
+			else if (l->type == RET_BINDABLE || r->type == RET_BINDABLE)
+			{
+				return_value_t*	var	= l->type == RET_BINDABLE ? l : r;
+				return_value_t*	val	= l->type != RET_BINDABLE ? l : r;
+				token_t*	tok	= ARENA_PUSH_STRUCT(arena, token_t);
+				char*		tok_str	= ARENA_PUSH_ARRAY(arena, char, var->token->length);
+
+				memcpy(tok, var->token, sizeof(token_t));
+				memcpy(tok_str, tok->start, tok->length);
+				tok->start = tok_str;
+
+				return_value_t*	mapped_val = ARENA_PUSH_STRUCT(arena, return_value_t);
+				evaluator_memcpy_value(arena, mapped_val, val);
+				variables_map_put(vmap_tmp, tok, mapped_val);
 				ret = val;
 			}
 			else
@@ -1284,7 +1319,7 @@ test_evaluate_base(void)
 	lexer_init(&lexer, test, 13);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -55.0 - EPS && res->f <= -55.0 + EPS);
@@ -1294,7 +1329,7 @@ test_evaluate_base(void)
 	lexer_init(&lexer, test2, 19);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -255.0 - EPS && res->f <= -255.0 + EPS);
@@ -1316,7 +1351,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test3, 9);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 5);
@@ -1328,7 +1363,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test4, 40);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->oom == OOM_MILLI);
@@ -1340,7 +1375,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test5, 24);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= 5005.0 - EPS && res->f <= 5005.0 + EPS);
@@ -1352,7 +1387,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test6, 33);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= 0.025 - EPS && res->f <= 0.025 + EPS);
@@ -1377,7 +1412,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test7, 7);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 10);
@@ -1390,7 +1425,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test8, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 20);
@@ -1402,7 +1437,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test9, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 20);
@@ -1415,7 +1450,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test10, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 5);
@@ -1428,7 +1463,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test11, 5);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 15);
@@ -1452,7 +1487,7 @@ test_evaluate_list(void)
 	lexer_init(&lexer, test1, 7);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 1);
@@ -1477,7 +1512,7 @@ test_evaluate_list(void)
 	lexer_init(&lexer, test2, 14);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 1);
@@ -1527,7 +1562,7 @@ test_evaluate_list(void)
 	lexer_init(&lexer, test3, 4);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 2);
@@ -1552,7 +1587,7 @@ test_evaluate_complex(void)
 	lexer_init(&lexer, test1, 9);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 
 	assert(res->type == RET_COMPLEX);
 	assert(fabs(creal(res->c) - 5) < EPS);

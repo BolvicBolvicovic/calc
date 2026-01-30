@@ -82,11 +82,13 @@ lexer_stream(lexer_t* lexer)
 		return;
 	case ':':
 		if (idx == size || buf[idx] != ':')
-			break;
-
-		lexer->stream[sidx].symbol = TK_BIND;
-		lexer->stream[sidx].length = 2;
-		lexer->buffer_idx++;
+			lexer->stream[sidx].symbol = TK_TMP_BIND;
+		else
+		{
+			lexer->stream[sidx].symbol = TK_BIND;
+			lexer->stream[sidx].length = 2;
+			lexer->buffer_idx++;
+		}
 		return;
 	}
 
@@ -145,6 +147,8 @@ lexer_token_to_string(token_t* t)
 		return "TK_POW";
 	case TK_BIND:
 		return "TK_BIND";
+	case TK_TMP_BIND:
+		return "TK_TMP_BIND";
 	case TK_LIST:
 		return "TK_LIST";
 
