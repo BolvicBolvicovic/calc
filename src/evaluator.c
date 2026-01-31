@@ -18,12 +18,18 @@ evaluator_memcpy_value(arena_t* arena, return_value_t* dst, return_value_t* src)
 {
 	memcpy(dst, src, sizeof(return_value_t));
 	
+	if (dst->type == RET_FUNC)
+		dst->func = parser_save_tree(arena, dst->func);
+
 	while (src->next)
 	{
 		dst->next = ARENA_PUSH_STRUCT(arena, return_value_t);
 		memcpy(dst->next, src->next, sizeof(return_value_t));
 		dst = dst->next;
 		src = src->next;
+
+		if (dst->type == RET_FUNC)
+			dst->func = parser_save_tree(arena, dst->func);
 	}
 }
 
@@ -73,6 +79,10 @@ evaluator_print_res_val(return_value_t* res)
 	case RET_COMPLEX:
 		printf("%g + %gI", creal(res->c), cimag(res->c));
 		break;
+	case RET_FUNC:
+		// TODO: Find a way to print expression properly.
+		printf("func");
+		return;
 	case RET_ERR:
 		error_print(res->token, res->err_code);
 		return;
@@ -418,10 +428,16 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 	switch (node->type)
 	{
 	case EXPR_ID:
-
 		if (node->left)
 		{
 			// Built-in or function
+			if (token_len == 4 && memcmp("func", token_buf, 4) == 0)
+			{
+				ret->func = node->left;
+				ret->type = RET_FUNC;
+				return ret;
+			}
+
 			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 
 			switch (token_len)
@@ -602,6 +618,9 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			s64		idx	= 0;
 			s64		i	= 0;
 			return_value_t*	tmp	= *var;
+
+			if (tmp->type == RET_FUNC)
+				return evaluate(arena, vmap_tmp, tmp->func, arena_vmap, vmap);
 
 			switch (ret->type)
 			{
@@ -1596,6 +1615,47 @@ test_evaluate_complex(void)
 	assert(res->oom == OOM_NONE);
 }
 
+static void
+test_evaluate_func(void)
+{
+	arena_t*	arena1	= ARENA_ALLOC();
+	arena_t*	arena2	= ARENA_ALLOC();
+	variables_map*	vmap1	= variables_map_new(arena1, 100);
+	variables_map*	vmap2	= variables_map_new(arena2, 100);
+	lexer_t		lexer;
+	ast_node_t*	tree	= 0;
+	return_value_t*	res	= 0;
+	
+	char*	e	= "circle :: func(2*PI*_R)";
+	char*	test1	= ARENA_PUSH_ARRAY(arena1, char, 23);
+
+	memcpy(test1, e, 23);
+	lexer_init(&lexer, test1, 23);
+
+	tree	= parser_parse_expression(arena1, &lexer, 0);
+	res	= evaluate(arena1, vmap1, tree, arena2, vmap2);
+
+	assert(res->type == RET_FUNC);
+	assert(res->func);
+		
+	arena_clear(arena1);
+	memset(test1, 0, 23);
+	vmap1 = variables_map_new(arena1, 100);
+
+	char*	test2	= "circle(_R:5)";
+	
+	lexer_init(&lexer, test2, 12);
+
+	tree	= parser_parse_expression(arena1, &lexer, 0);
+	res	= evaluate(arena1, vmap1, tree, arena2, vmap2);
+
+	assert(res->type == RET_FLOAT);
+	assert((res->f - (2*M_PI*5)) < EPS);
+	assert(res->unit == U_NONE);
+	assert(res->oom == OOM_NONE);
+
+}
+
 void
 test_evaluate(void)
 {
@@ -1605,6 +1665,7 @@ test_evaluate(void)
 	test_evaluate_binding();
 	test_evaluate_list();
 	test_evaluate_complex();
+	test_evaluate_func();
 }
 
 #endif // TESTER

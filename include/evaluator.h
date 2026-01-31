@@ -15,6 +15,7 @@ enum return_t
 {
 	RET_FLOAT,
 	RET_COMPLEX,
+	RET_FUNC,
 	RET_BINDABLE,
 	RET_ERR,
 };
@@ -61,6 +62,7 @@ struct return_value_t
 	{
 		f64		f;
 		complex		c;
+		ast_node_t*	func;
 		error_code_t	err_code;
 	};
 	return_t		type;

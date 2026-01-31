@@ -169,6 +169,7 @@ calc> milli(watt(5)) :: x
 ```
 
 Temporary variables are bound to values with the temporary binding opereator `:`.
+They share their lifetime (or scope) with the expression.
 
 ```
 calc> (c : 5) + c
@@ -209,27 +210,21 @@ Note that lists are internally linked lists. Accessing an element will be always
 
 ### Declaration
 
-A function is declared when an expression containing at least one implicit argument is bound to a variable.
-An implicit argument is a literal that starts with `_`. 
+A function is declared with the built-in `func`. The expression in its parenthesis is saved and can be used later.
 
 ```
-calc> circle :: 2 * PI * _R
+calc> circle :: func(2 * PI * _R)
 > 2 * PI * _R
 ```
 
 ### Usage
 
-A function call works like a built-in.
-A list of values is passed to the function and the function associates left to right each value to each variable.
+A function call works in a similar manner a built-in works.
+A list of values is passed to the function but they must be temporary defined with the binding operator `:`.
 
 ```
 calc> circle(5)
-> 31.4159
-```
-
-One can defined which argument is to be called by using the temporary binding operator `:`.
-
-```
+> 
 calc> circle(_R:5)
 > 31.4159
 ```

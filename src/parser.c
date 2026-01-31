@@ -24,9 +24,9 @@ parser_get_precedence(symbol_t symbol)
 	{
 	case TK_BIND:
 		return 2;
-	case TK_TMP_BIND:
-		return 4;
 	case TK_LIST:
+		return 4;
+	case TK_TMP_BIND:
 		return 6;
 	case TK_ADD:
 	case TK_SUB:
@@ -136,6 +136,27 @@ parser_parse_expression(arena_t* arena, lexer_t* lexer, s32 precedence)
 	return left;
 }
 
+ast_node_t*
+parser_save_tree(arena_t* arena, ast_node_t* tree)
+{
+	if (!tree)
+		return 0;
+
+	ast_node_t*	l = parser_save_tree(arena, tree->left);
+	ast_node_t*	r = parser_save_tree(arena, tree->right);
+	ast_node_t*	s = ARENA_PUSH_STRUCT(arena, ast_node_t);
+	char*		ts= ARENA_PUSH_ARRAY(arena, char, tree->token.length);
+
+	memcpy(s, tree, sizeof(ast_node_t));
+	memcpy(ts, s->token.start, s->token.length);
+
+	s->left = l;
+	s->right= r;
+	s->token.start = ts;
+
+	return s;
+}
+
 #ifdef TESTER
 
 void
@@ -144,10 +165,57 @@ parser_print_preorder(ast_node_t* expr, s32 d)
 	if (!expr)
 		return;
 	
-	printf("deepness: %d\n", d);
-	lexer_print_token(&expr->token);
+	printf("deepness: %d, token: %s\n", d, expr->token.start);
+	//lexer_print_token(&expr->token);
 	parser_print_preorder(expr->left, d + 1);
 	parser_print_preorder(expr->right, d + 1);
+}
+
+void
+test_parser_save_tree(void)
+{
+	ast_node_t*	tree = 0;
+	arena_t*	a1   = ARENA_ALLOC();
+	arena_t*	a2   = ARENA_ALLOC();
+	char*		e    = "-5 - 10.0 * 5";
+	char*		test = ARENA_PUSH_ARRAY(a1, char, 13);
+	lexer_t		lexer;
+
+	memcpy(test, e, 13);
+
+	lexer_init(&lexer, test, 13);
+	tree = parser_parse_expression(a1, &lexer, 0);
+	//printf("First print:\n");
+	//parser_print_preorder(tree, 0);
+
+	tree = parser_save_tree(a2, tree);
+
+	memset(a1, 0, a1->commit_size);
+	arena_release(a1);
+	//printf("Second print:\n");
+	//parser_print_preorder(tree, 0);
+	// tree should look like this:
+	// 			[ TK_SUB ]
+	// 	[ TK_SUB ]			[ TK_MUL ]
+	// [ TK_FLOAT ]			[ TK_FLOAT ]	[ TK_FLOAT ]
+	assert(tree);
+	// 3. return - with left = -(5) and right = * (10.0, 5)
+	assert(tree->token.symbol == TK_SUB);
+
+	// 2. left = - (its left is -(5))
+	//	2.3. left = * (its left is 10.0 and its right is 5)
+	assert(tree->right->token.symbol == TK_MUL);
+	//	2.2. left = 10.0
+	assert(tree->right->left->token.symbol == TK_FLOAT);
+	//	2.1. right = 5
+	assert(tree->right->right->token.symbol == TK_FLOAT);
+
+	// 1. left = -
+	assert(tree->left->token.symbol == TK_SUB);
+	// 	1.1. left = 5
+	assert(tree->left->left->token.symbol == TK_FLOAT);
+	
+	arena_release(a2);
 }
 
 void
