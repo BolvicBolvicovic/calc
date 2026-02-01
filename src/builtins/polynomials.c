@@ -417,7 +417,7 @@ test_polynomials(void)
 	lexer_init(&lexer, linear, 17);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f < -0.6 + EPS && res->f > -0.6 - EPS);
@@ -426,7 +426,7 @@ test_polynomials(void)
 	lexer_init(&lexer, quadratic, 21);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 	f64	x1 = (-3+sqrt(29))/10;
 	f64	x2 = (-3-sqrt(29))/10;
@@ -442,7 +442,7 @@ test_polynomials(void)
 	lexer_init(&lexer, cubic, 27);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 
 	x1 = 5;
@@ -465,7 +465,7 @@ test_polynomials(void)
 	lexer_init(&lexer, quartic, 36);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, tree, arena, vmap);
+	res	= evaluate(arena, vmap, tree, arena, vmap);
 	
 
 	x1 = 3;

@@ -15,6 +15,7 @@ enum return_t
 {
 	RET_FLOAT,
 	RET_COMPLEX,
+	RET_FUNC,
 	RET_BINDABLE,
 	RET_ERR,
 };
@@ -61,6 +62,7 @@ struct return_value_t
 	{
 		f64		f;
 		complex		c;
+		ast_node_t*	func;
 		error_code_t	err_code;
 	};
 	return_t		type;
@@ -75,8 +77,8 @@ SWISSMAP_DECLARE_FUNCTIONS(variables_map, token_t*, return_value_t*)
 
 f64		return_value_as_float(return_value_t* v);
 void		return_value_convert_oom(return_value_t* v, order_of_magnetude_t oom);
-return_value_t*	evaluate(arena_t*, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
-void		evaluator_print_res(return_value_t* res);
+return_value_t*	evaluate(arena_t*, variables_map* tmp, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
+void		evaluator_print_res(arena_t*, return_value_t* res);
 
 #ifdef TESTER
 

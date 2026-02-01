@@ -8,6 +8,7 @@ main()
 {
 	test_lexer_consume_token();
 	test_parser_parse_expression();
+	test_parser_save_tree();
 	test_evaluate();
 	test_polynomials();
 	test_swissmap();

@@ -149,9 +149,9 @@ but since it is a calculator, I do not think that assignment is as meaningfull.
 We are not looking for performance on the frontend, just some math.
 However, I have not refused the idea and I am still thinking about it.
 
-### Binding operator `::`
+### Binding operators `::` and `:`
 
-Variables are bound to values with the binding opereator `::`.
+Global variables are bound to values with the global binding opereator `::`.
 
 ```
 calc> x :: milli(watt(5))
@@ -160,12 +160,22 @@ calc> x + 5
 > 10 milli watt
 ```
 
-Note that the binding operator has the smallest precedence and can be used on both ways.
+Note that the global binding operator has the smallest precedence and can be used on both ways.
 
 ```
 // This is also a valid syntax
 calc> milli(watt(5)) :: x
 > 5 milli watt
+```
+
+Temporary variables are bound to values with the temporary binding opereator `:`.
+They share their lifetime (or scope) with the expression.
+
+```
+calc> (c : 5) + c
+> 10
+calc> c * c
+> Error at line 1 here ->* c: Operation with unbound variable not allowed
 ```
 
 ## Lists
@@ -195,32 +205,42 @@ calc> my_list(10)
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
 
-## Function *(WIP)*
+## Function
 
 ### Declaration
 
-A function is declared when an expression containing at least one implicit argument is bound to a variable.
-An implicit argument is a literal that starts with `_`. 
+A function is declared with the built-in `func`. The expression in its parenthesis is saved and can be used later.
 
 ```
-calc> circle :: 2 * PI * _R
-> 2 * PI * _R
+calc> circle :: func(2 * PI * _R)
+> ((2)*(PI))*(_R)
 ```
 
 ### Usage
 
-A function call works like a built-in.
-A list of values is passed to the function and the function associates left to right each value to each variable.
-
-```
-calc> circle(5)
-> 31.4159
-```
-
-One can defined which argument is to be called by using the temporary binding operator `:`.
+A function call works in a similar manner a built-in works.
+A list of temporary defined values with the temporary binding operator `:` is passed to the function.
 
 ```
 calc> circle(_R:5)
+> 31.4159
+```
+
+Note that if you pass any other argument to the function, (i.e. a single value like 5), the function execution fails because one of the variable is undefined.
+
+```
+calc> circle(5)
+> Error at line 1 here ->*: Operation with unbound variable not allowed 
+```
+
+Here `_R` is undefined. Note that variables can be defined on a global scope. A placeholder needs to be passed to the function list to make the call.
+
+```
+calc> circle :: func(2 * PI * _R)
+> ((2)*(PI))*(_R)
+calc> _R :: 5
+> 5
+calc> circle(_)
 > 31.4159
 ```
 

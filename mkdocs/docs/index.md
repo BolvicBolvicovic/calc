@@ -31,7 +31,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-- function declaration and usage: implicit argument (i.e. literals that start with `_`) create lambda functions that can be bound to a literal name (i.e. `circle :: 2*PI*_R`). A call would use the `:` operator to temporary define a value for `_R` (i.e. `circle(_R:5)`).
+*NONE*
 
 ### Refused
 
@@ -62,6 +62,7 @@ List of all features that I thought about and that have been validated or not, i
 - physics built-ins: current related calculators
 - practical built-ins: exit, clear
 - errors as enums (err_code) in parser and evaluator (no errors in lexer)
+- function declaration/usage: `func(expr)` built-in and temporary binding operator `literal_expr : expr`
 
 ### Spotted issues
 
@@ -88,6 +89,19 @@ calc> 1 + () 5
 
 I don't know if I want it to be a typo error or just an empty object that can be skipped.
 The main reason is that I might want to be able to write that `clear()` instead of the current `clear`.
+
+**two expressions following each other separated by a space result in the first expression**
+
+```
+calc> tab tab + 5
+>
+calc> PI PI + 8
+> 3.14159
+calc> 8 8 + 8
+> 8
+calc> 8 + 8 8  +9
+> 16
+```
 
 ## Lexer
 
