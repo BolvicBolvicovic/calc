@@ -693,6 +693,14 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 					return 0;
 				}
 				break;
+			case 11:
+				if (memcmp("new_session", token_buf, 11) == 0)
+				{
+					arena_clear(arena_vmap);
+					vmap = variables_map_new(arena_vmap, 1000);
+					return 0;
+				}
+				break;
 			default:
 			}
 			// Variables

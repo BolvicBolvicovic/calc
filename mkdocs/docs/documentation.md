@@ -387,3 +387,8 @@ Quits the calculator.
 ### `clear`
 
 Clears the terminal.
+
+### `new_session`
+
+Clears the variables hashmap.
+By extension, variables are not bound to their previous values.
