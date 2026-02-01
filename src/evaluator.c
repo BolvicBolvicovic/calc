@@ -690,6 +690,22 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			case 4:
 				if (memcmp("exit", token_buf, 4) == 0)
 					exit(0);
+				else if (memcmp("help", token_buf, 4) == 0)
+				{
+					printf(
+					"> Calc Helper\n"
+					"> For more information on a topic, use the command help(topic)\n"
+					"> Note the usage of the '_' character for spaces.\n"
+					"> Available topics:\n"
+					"> 	- operations\n"
+					"> 	- lists\n"
+					"> 	- variables\n"
+					"> 	- functions\n"
+					"> 	- builtins\n"
+					"> 	- orders_of_magnitude\n"
+					"> 	- physics_units\n");
+					return 0;
+				}
 				break;
 			case 5:
 				if (memcmp("clear", token_buf, 5) == 0)
