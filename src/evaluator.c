@@ -441,6 +441,11 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 				ret->type = RET_FUNC;
 				return ret;
 			}
+			else if (token_len == 6 && memcmp("unbind", token_buf, 6) == 0)
+			{
+				variables_map_delete(vmap, &node->left->token);
+				return 0;
+			}
 
 			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 
@@ -757,6 +762,13 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 	case EXPR_BOP:
 		return_value_t*	l = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
 		return_value_t* r = evaluate(arena, vmap_tmp, node->right, arena_vmap, vmap);
+
+		if (!l || !r)
+		{
+			ret->type	= RET_ERR;
+			ret->err_code	= ERR_MISSING_OPERATOR_ARGUMENT;
+			return ret;
+		}
 
 		if (l->type == RET_ERR || r->type == RET_ERR)
 		{

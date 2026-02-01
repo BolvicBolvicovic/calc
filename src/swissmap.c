@@ -126,6 +126,9 @@ test_swissmap(void)
 	assert(floatmap_get(sm, test) != 0);
 	assert(*floatmap_get(sm, test) == 42);
 	
+	floatmap_delete(sm, test);
+	assert(floatmap_get(sm, test) == 0);
+	
 	char*	lit = ARENA_PUSH_ARRAY(arena, char, 5);
 
 	sm_cap	= 16;

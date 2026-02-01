@@ -392,3 +392,9 @@ Clears the terminal.
 
 Clears the variables hashmap.
 By extension, variables are not bound to their previous values.
+
+### `unbound(var_name)`
+
+Deletes a variable from the variables hashmap.
+By extension, the variable can be bound to a new value.
+Use in extreme cases only.

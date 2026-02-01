@@ -41,7 +41,6 @@ List of all features that I thought about and that have been validated or not, i
 ### In Development
 
 - helper with short documentation
-- `unbind(expr)` to unbind a bound variable
 
 ### Finished
 
@@ -60,7 +59,7 @@ List of all features that I thought about and that have been validated or not, i
 - lists with the `,` operator
 - maths built-ins: polynomials, trigo and cube/square roots
 - physics built-ins: current related calculators
-- practical built-ins: `exit`, `clear`, `new_session`
+- practical built-ins: `exit`, `clear`, `new_session`, `unbind(var)`
 - errors as enums (`err_code`) in parser and evaluator (no errors in lexer)
 - function declaration/usage: `func(expr)` built-in and temporary binding operator `literal_expr : expr`
 
