@@ -26,8 +26,6 @@ List of all features that I thought about and that have been validated or not, i
 - comments
 - interpreting files, libs: `load(file_name)`, defined macro `#ifdef CALC_LIBS load_libs(CALC_LIBS); #endif`
 - autocomplete
-- helper with short documentation
-- `new_session` helper that clears the variables map and `unbind(expr)` to unbind a bound variable
 
 ### Validated
 
@@ -42,7 +40,8 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-*NONE*
+- helper with short documentation
+- `new_session` helper that clears the variables map and `unbind(expr)` to unbind a bound variable
 
 ### Finished
 
