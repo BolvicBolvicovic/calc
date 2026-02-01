@@ -157,6 +157,39 @@ parser_save_tree(arena_t* arena, ast_node_t* tree)
 	return s;
 }
 
+void
+parser_expr_to_str(ast_node_t* expr, char* buf, s32* idx)
+{
+	if (expr->left && expr->right)
+	{
+		buf[*idx] = '(';
+		*idx += 1;
+		parser_expr_to_str(expr->left, buf, idx);
+		buf[*idx] = ')';
+		*idx += 1;
+	}
+	
+	memcpy(buf + *idx, expr->token.start, expr->token.length);
+	*idx += expr->token.length;
+
+	if (expr->right)
+	{
+		buf[*idx] = '(';
+		*idx += 1;
+		parser_expr_to_str(expr->right, buf, idx);
+		buf[*idx] = ')';
+		*idx += 1;
+	}
+	else if (expr->left)
+	{
+		buf[*idx] = '(';
+		*idx += 1;
+		parser_expr_to_str(expr->left, buf, idx);
+		buf[*idx] = ')';
+		*idx += 1;
+	}
+}
+
 #ifdef TESTER
 
 void

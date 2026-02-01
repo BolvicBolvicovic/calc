@@ -69,7 +69,7 @@ evaluator_hash(token_t* t)
 }
 
 static inline void
-evaluator_print_res_val(return_value_t* res)
+evaluator_print_res_val(arena_t* arena, return_value_t* res)
 {
 	switch (res->type)
 	{
@@ -81,7 +81,11 @@ evaluator_print_res_val(return_value_t* res)
 		break;
 	case RET_FUNC:
 		// TODO: Find a way to print expression properly.
-		printf("func");
+		char*	buf = ARENA_PUSH_ARRAY(arena, char, 128);
+		s32	idx = 0;
+		parser_expr_to_str(res->func, buf, &idx);
+		buf[idx] = 0;
+		printf("%s", buf);
 		return;
 	case RET_ERR:
 		error_print(res->token, res->err_code);
@@ -1285,26 +1289,26 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 }
 
 void
-evaluator_print_res(return_value_t* res)
+evaluator_print_res(arena_t* arena, return_value_t* res)
 {
 	if (res->next)
 	{
 		printf("(");
 		
-		evaluator_print_res_val(res);
+		evaluator_print_res_val(arena, res);
 		res = res->next;
 
 		while (res)
 		{
 			printf(", ");
-			evaluator_print_res_val(res);
+			evaluator_print_res_val(arena, res);
 			res = res->next;
 		}
 
 		printf(")");
 	}
 	else
-		evaluator_print_res_val(res);
+		evaluator_print_res_val(arena, res);
 	
 	printf("\n");
 }

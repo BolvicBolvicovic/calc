@@ -178,7 +178,6 @@ calc> c * c
 > Error at line 1 here ->* c: Operation with unbound variable not allowed
 ```
 
-
 ## Lists
 
 The list is the container of the calc interpreter. A list is a list of values (floats or integer).
@@ -206,7 +205,7 @@ calc> my_list(10)
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
 
-## Function *(WIP)*
+## Function
 
 ### Declaration
 
@@ -214,18 +213,34 @@ A function is declared with the built-in `func`. The expression in its parenthes
 
 ```
 calc> circle :: func(2 * PI * _R)
-> 2 * PI * _R
+> ((2)*(PI))*(_R)
 ```
 
 ### Usage
 
 A function call works in a similar manner a built-in works.
-A list of values is passed to the function but they must be temporary defined with the binding operator `:`.
+A list of temporary defined values with the temporary binding operator `:` is passed to the function.
+
+```
+calc> circle(_R:5)
+> 31.4159
+```
+
+Note that if you pass any other argument to the function, (i.e. a single value like 5), the function execution fails because one of the variable is undefined.
 
 ```
 calc> circle(5)
-> 
-calc> circle(_R:5)
+> Error at line 1 here ->*: Operation with unbound variable not allowed 
+```
+
+Here `_R` is undefined. Note that variables can be defined on a global scope. A placeholder needs to be passed to the function list to make the call.
+
+```
+calc> circle :: func(2 * PI * _R)
+> ((2)*(PI))*(_R)
+calc> _R :: 5
+> 5
+calc> circle(_)
 > 31.4159
 ```
 

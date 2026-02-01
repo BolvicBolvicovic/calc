@@ -37,7 +37,7 @@ main()
 		if (res)
 		{
 			printf("> \e[3m");
-			evaluator_print_res(res);
+			evaluator_print_res(arena_loop, res);
 			printf("\e[0m");
 		}
 
