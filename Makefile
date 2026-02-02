@@ -41,13 +41,13 @@ tests: clean $(TESTER)
 bench: clean $(BENCH)
 	./$(BENCH)
 
-docs_serve:
+serve_docs:
 	cd mkdocs && mkdocs serve
 
-docs_open:
+open_docs:
 	vim mkdocs/docs/documentation.md
 
-docs_open_notes:
+open_notes:
 	vim mkdocs/docs/index.md
 
-.PHONY: all clean re run tests bench docs_open docs_serve docs_open_notes 
+.PHONY: all clean re run tests bench serve_docs open_docs open_notes

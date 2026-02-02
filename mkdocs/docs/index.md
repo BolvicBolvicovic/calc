@@ -12,7 +12,6 @@ List of all features that I thought about and that have been validated or not, i
 
 - dot product function
 - binary logic
-- plot function
 - make constant part of metadata OR use as a float
 - handle unkown conversion (i.e. watt/second)
 
@@ -29,14 +28,14 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-*NONE*
+- plot function
 
 ### Refused
 
 - built-in print: no need since interpreter prints results. If a variable needs to be printed, just enter the variable and it will be printed.
 - use fixed number instead of float: slows down computation since it needs to work with complex numbers and unnecessary precision in a physics context.
 - equations with the `=` operator: `=` should be reserved for the binary equality.
-- variables assignment: `x := 5`: variable assignment bypasses binding and unbinding. I don't want those two to be bypassed since it is a mathematical tool and not a programming tool.
+- variables assignment: `x := 5`: variable assignment bypasses binding and unbinding. I don't want those two to be bypassed since it is a math tool and not a programming tool.
 
 ### In Development
 
