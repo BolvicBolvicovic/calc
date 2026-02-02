@@ -714,17 +714,18 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 				else if (memcmp("help", token_buf, 4) == 0)
 				{
 					printf(
-					"> Calc Helper\n"
-					"> For more information on a topic, use the command help(topic)\n"
-					"> Note the usage of the '_' character for spaces.\n"
-					"> Available topics:\n"
-					"> 	- operations\n"
-					"> 	- lists\n"
-					"> 	- variables\n"
-					"> 	- functions\n"
-					"> 	- builtins\n"
-					"> 	- orders_of_magnitude\n"
-					"> 	- physics_units\n");
+				"> Calc Helper\n"
+				"> For more information on a topic, use the built-in help(topic)\n"
+				"> Note the usage of the '_' character for spaces.\n"
+				"> Available topics:\n"
+				"> 	- operations\n"
+				"> 	- lists\n"
+				"> 	- variables\n"
+				"> 	- functions\n"
+				"> 	- builtins\n"
+				"> 	- orders_of_magnitude\n"
+				"> 	- physics_units\n"
+				"> More information can be found in ./mkdocs/docs/documentation.md\n");
 					return 0;
 				}
 				break;

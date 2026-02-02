@@ -200,7 +200,7 @@ One can access an element of a list with a 0-based index like so:
 calc> my_list(0)
 > 12
 calc> my_list(10)
-> Error while evaluating expression
+> Error at line 1 here ->10): Out of bound
 ```
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
@@ -393,7 +393,7 @@ Clears the terminal.
 Clears the variables hashmap.
 By extension, variables are not bound to their previous values.
 
-### `unbound(var_name)`
+### `unbind(var_name)`
 
 Deletes a variable from the variables hashmap.
 By extension, the variable can be bound to a new value.
