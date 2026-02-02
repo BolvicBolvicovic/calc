@@ -380,6 +380,20 @@ calc> amp_divider(15, 100, 100)
 
 ## Other Built-Ins
 
+### `help` and `help(topic)`
+
+Shows a help message. If a topic is passed as argument, displays the specific help for this topic.
+
+**Topics available**
+
+- `operations`
+- `lists`
+- `variables`
+- `functions`
+- `builtins`
+- `orders_of_magnitude`
+- `physics_units`
+
 ### `exit`
 
 Quits the calculator.
