@@ -138,6 +138,7 @@ name##_get(name* map, K_t key)					\
 		}						\
 								\
 		if (swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask))\
+		if (swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask))\
 			return 0;				\
 								\
 		group = (group + SWISSMAP_GROUP_SIZE) & mask;	\
@@ -184,7 +185,10 @@ name##_put(name* map, K_t key, V_t value)			\
 			m &= m - 1;				\
 		}						\
 								\
-		u16	empty	= swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask);\
+		u16	empty = swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask);\
+								\
+		if (!empty)					\
+			empty = swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask);\
 								\
 		if (empty)					\
 		{						\
@@ -204,13 +208,56 @@ name##_put(name* map, K_t key, V_t value)			\
 	while (group != start);					\
 }
 
+/* Name: SWISSMAP_DEFINE_DELETE
+ * Description: macro that defines the delete function for a user defined swissmap.
+ * Requires a hash function and a comparison function.
+ * If match, sets the entry as SWISS_DELETED.
+ * */
+#define SWISSMAP_DEFINE_DELETE(name, K_t, V_t, hash_fn, eq_fn)	\
+void								\
+name##_delete(name* map, K_t key)				\
+{								\
+	u64	hash	= hash_fn(key);				\
+	u8	h2	= swiss_h2(hash);			\
+	u64	mask	= map->capacity - 1;			\
+	u64	group	= swiss_h1(hash, map->capacity);	\
+	u64	start	= group;				\
+								\
+	do							\
+	{							\
+		u16	m = swiss_match_h2(map->ctrl, h2, group & mask);\
+								\
+		while (m)					\
+		{						\
+			s32	i	= __builtin_ctz(m);	\
+			u64	idx	= (group + i) & mask;	\
+								\
+			if (eq_fn(map->keys[idx], key))		\
+			{					\
+				map->ctrl[idx] = SWISS_DELETED;	\
+				return;				\
+			}					\
+								\
+			m &= m - 1;				\
+		}						\
+								\
+		if (swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask))\
+		if (swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask))\
+			return;					\
+								\
+		group = (group + SWISSMAP_GROUP_SIZE) & mask;	\
+	}							\
+	while (group != start);					\
+}
+
 /* Name: SWISSMAP_DEFINE_FUNCTIONS
  * Description: Single macro that defines all functions for a user defined swissmap.
  * */
 #define SWISSMAP_DEFINE_FUNCTIONS(name, K_t, V_t, hash_fn, eq_fn)\
 SWISSMAP_DEFINE_NEW(name, K_t, V_t)			\
 SWISSMAP_DEFINE_GET(name, K_t, V_t, hash_fn, eq_fn)	\
-SWISSMAP_DEFINE_PUT(name, K_t, V_t, hash_fn, eq_fn)
+SWISSMAP_DEFINE_PUT(name, K_t, V_t, hash_fn, eq_fn)	\
+SWISSMAP_DEFINE_DELETE(name, K_t, V_t, hash_fn, eq_fn)
 
 /* Name: SWISSMAP_DEFINE_FUNCTIONS_DEFAULT
  * Description: Single macro that defines all functions for the default swissmap.
@@ -225,7 +272,8 @@ SWISSMAP_DEFINE_FUNCTIONS(name, char*, V_t, swiss_djb2_hash, swiss_strcmp_wrappe
 #define SWISSMAP_DECLARE_FUNCTIONS(name, K_t, V_t)	\
 name*	name##_new(arena_t* arena, u64 capacity);	\
 void	name##_put(name* map, K_t key, V_t value);	\
-V_t*	name##_get(name* map, K_t key);
+V_t*	name##_get(name* map, K_t key);			\
+void	name##_delete(name* map, K_t key);
 
 /* Name: SWISSMAP_DECLARE_DEFAULT
  * Description: Single macro that declares the default swissmap and its functions.

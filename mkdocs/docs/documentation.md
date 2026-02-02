@@ -200,7 +200,7 @@ One can access an element of a list with a 0-based index like so:
 calc> my_list(0)
 > 12
 calc> my_list(10)
-> Error while evaluating expression
+> Error at line 1 here ->10): Out of bound
 ```
 
 Note that lists are internally linked lists. Accessing an element will be always O(n).
@@ -380,6 +380,20 @@ calc> amp_divider(15, 100, 100)
 
 ## Other Built-Ins
 
+### `help` and `help(topic)`
+
+Shows a help message. If a topic is passed as argument, displays the specific help for this topic.
+
+**Topics available**
+
+- `operations`
+- `lists`
+- `variables`
+- `functions`
+- `builtins`
+- `orders_of_magnitude`
+- `physics_units`
+
 ### `exit`
 
 Quits the calculator.
@@ -387,3 +401,14 @@ Quits the calculator.
 ### `clear`
 
 Clears the terminal.
+
+### `new_session`
+
+Clears the variables hashmap.
+By extension, variables are not bound to their previous values.
+
+### `unbind(var_name)`
+
+Deletes a variable from the variables hashmap.
+By extension, the variable can be bound to a new value.
+Use in extreme cases only.

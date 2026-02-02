@@ -75,9 +75,22 @@ struct return_value_t
 SWISSMAP_DECLARE(variables_map, token_t*, return_value_t*)
 SWISSMAP_DECLARE_FUNCTIONS(variables_map, token_t*, return_value_t*)
 
+SWISSMAP_DECLARE(string_map, token_t*, char*)
+SWISSMAP_DECLARE_FUNCTIONS(string_map, token_t*, char*)
+
+typedef struct evaluate_param_t	evaluate_param_t;
+struct evaluate_param_t
+{
+	arena_t*	arena_tmp;
+	arena_t*	arena_glb;
+	variables_map*	vmap_tmp;
+	variables_map*	vmap_glb;
+	string_map*	smap;
+};
+
 f64		return_value_as_float(return_value_t* v);
 void		return_value_convert_oom(return_value_t* v, order_of_magnetude_t oom);
-return_value_t*	evaluate(arena_t*, variables_map* tmp, ast_node_t* expr, arena_t* arena_vmap, variables_map*);
+return_value_t*	evaluate(ast_node_t* expr, evaluate_param_t*);
 void		evaluator_print_res(arena_t*, return_value_t* res);
 
 #ifdef TESTER

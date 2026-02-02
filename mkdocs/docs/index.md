@@ -40,8 +40,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-- helper with short documentation
-- `new_session` helper that clears the variables map and `unbind(expr)` to unbind a bound variable
+*NONE*
 
 ### Finished
 
@@ -60,7 +59,7 @@ List of all features that I thought about and that have been validated or not, i
 - lists with the `,` operator
 - maths built-ins: polynomials, trigo and cube/square roots
 - physics built-ins: current related calculators
-- practical built-ins: exit, clear
+- practical built-ins: `exit`, `clear`, `new_session`, `unbind(var)`, `help` and `help(topic)`
 - errors as enums (`err_code`) in parser and evaluator (no errors in lexer)
 - function declaration/usage: `func(expr)` built-in and temporary binding operator `literal_expr : expr`
 

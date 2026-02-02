@@ -12,6 +12,7 @@ static s32	evaluator_hash_memcmp(token_t* t1, token_t* t2);
 static u64	evaluator_hash(token_t* t);
 
 SWISSMAP_DEFINE_FUNCTIONS(variables_map, token_t*, return_value_t*, evaluator_hash, evaluator_hash_memcmp)
+SWISSMAP_DEFINE_FUNCTIONS(string_map, token_t*, char*, evaluator_hash, evaluator_hash_memcmp)
 
 static inline void
 evaluator_memcpy_value(arena_t* arena, return_value_t* dst, return_value_t* src)
@@ -406,9 +407,9 @@ evaluator_atof(token_t* token)
 }
 
 return_value_t*
-evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* arena_vmap, variables_map* vmap)
+evaluate(ast_node_t* node, evaluate_param_t* param)
 {
-	return_value_t*	ret = ARENA_PUSH_STRUCT(arena, return_value_t);
+	return_value_t*	ret = ARENA_PUSH_STRUCT(param->arena_tmp, return_value_t);
 	
 	ret->unit	= U_NONE;
 	ret->oom	= OOM_NONE;
@@ -432,18 +433,43 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 	switch (node->type)
 	{
 	case EXPR_ID:
+		// Built-in or function
 		if (node->left)
 		{
-			// Built-in or function
-			if (token_len == 4 && memcmp("func", token_buf, 4) == 0)
+			// No eval
+			switch (token_len)
 			{
-				ret->func = node->left;
-				ret->type = RET_FUNC;
-				return ret;
+			case 4:
+				if (memcmp("func", token_buf, 4) == 0)
+				{
+					ret->func = node->left;
+					ret->type = RET_FUNC;
+					return ret;
+				}
+				else if (memcmp("help", token_buf, 4) == 0)
+				{
+					char**	str = 
+						string_map_get(param->smap, &node->left->token);
+					if (str && *str)
+						printf("%s", *str);
+					else
+						printf("> Topic is not in helper.\n");
+					return 0;
+				}
+				break;
+			case 6:
+				if (memcmp("unbind", token_buf, 6) == 0)
+				{
+					variables_map_delete(param->vmap_glb, &node->left->token);
+					return 0;
+				}
+				break;
+			default:
 			}
 
-			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
+			ret = evaluate(node->left, param);
 
+			// Eval
 			switch (token_len)
 			{
 			case 3:
@@ -564,7 +590,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 				}
 				else if (memcmp("polynom_two", token_buf, 11) == 0)
 				{
-					polynom_two(arena, ret);
+					polynom_two(param->arena_tmp, ret);
 					return ret;
 				}
 				else if (memcmp("amp_divider", token_buf, 11) == 0)
@@ -576,7 +602,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			case 12:
 				if (memcmp("polynom_four", token_buf, 12) == 0)
 				{
-					polynom_four(arena, ret);
+					polynom_four(param->arena_tmp, ret);
 					return ret;
 				}
 				else if (memcmp("res_parallel", token_buf, 12) == 0)
@@ -593,7 +619,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			case 13:
 				if (memcmp("polynom_three", token_buf, 13) == 0)
 				{
-					polynom_three(arena, ret);
+					polynom_three(param->arena_tmp, ret);
 					return ret;
 				}
 				break;
@@ -607,10 +633,10 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			default:
 			} // switch (node->token.length)
 
-			return_value_t**	var = variables_map_get(vmap, token);
+			return_value_t**	var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
-				var = variables_map_get(vmap_tmp, token);
+				var = variables_map_get(param->vmap_tmp, token);
 
 			if (!var || !*var)
 			{
@@ -624,7 +650,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			return_value_t*	tmp	= *var;
 
 			if (tmp->type == RET_FUNC)
-				return evaluate(arena, vmap_tmp, tmp->func, arena_vmap, vmap);
+				return evaluate(tmp->func, param);
 
 			switch (ret->type)
 			{
@@ -685,6 +711,23 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			case 4:
 				if (memcmp("exit", token_buf, 4) == 0)
 					exit(0);
+				else if (memcmp("help", token_buf, 4) == 0)
+				{
+					printf(
+				"> Calc Helper\n"
+				"> For more information on a topic, use the built-in help(topic)\n"
+				"> Note the usage of the '_' character for spaces.\n"
+				"> Available topics:\n"
+				"> 	- operations\n"
+				"> 	- lists\n"
+				"> 	- variables\n"
+				"> 	- functions\n"
+				"> 	- builtins\n"
+				"> 	- orders_of_magnitude\n"
+				"> 	- physics_units\n"
+				"> More information can be found in ./mkdocs/docs/documentation.md\n");
+					return 0;
+				}
 				break;
 			case 5:
 				if (memcmp("clear", token_buf, 5) == 0)
@@ -693,13 +736,21 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 					return 0;
 				}
 				break;
+			case 11:
+				if (memcmp("new_session", token_buf, 11) == 0)
+				{
+					arena_clear(param->arena_glb);
+					param->vmap_glb = variables_map_new(param->arena_glb, 1000);
+					return 0;
+				}
+				break;
 			default:
 			}
 			// Variables
-			return_value_t**	var = variables_map_get(vmap, token);
+			return_value_t**	var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
-				var = variables_map_get(vmap_tmp, token);
+				var = variables_map_get(param->vmap_tmp, token);
 				
 			if (var && *var)
 				memcpy(ret, *var, sizeof(return_value_t));
@@ -717,7 +768,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			s64	idx	= (s64)ret->f;
 			s64	i	= 0;
 
-			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
+			ret = evaluate(node->left, param);
 
 			for (; i < idx && ret->next; i++, ret = ret->next);
 			
@@ -733,7 +784,7 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 		switch (token->symbol)
 		{
 		case TK_SUB:
-			ret = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
+			ret = evaluate(node->left, param);
 
 			if (ret->type == RET_FLOAT)
 				ret->f = -ret->f;
@@ -747,8 +798,15 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 		}
 		break;
 	case EXPR_BOP:
-		return_value_t*	l = evaluate(arena, vmap_tmp, node->left, arena_vmap, vmap);
-		return_value_t* r = evaluate(arena, vmap_tmp, node->right, arena_vmap, vmap);
+		return_value_t*	l = evaluate(node->left, param);
+		return_value_t* r = evaluate(node->right,param);
+
+		if (!l || !r)
+		{
+			ret->type	= RET_ERR;
+			ret->err_code	= ERR_MISSING_OPERATOR_ARGUMENT;
+			return ret;
+		}
 
 		if (l->type == RET_ERR || r->type == RET_ERR)
 		{
@@ -792,18 +850,18 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			{
 				return_value_t*	var	= l->type == RET_BINDABLE ? l : r;
 				return_value_t*	val	= l->type != RET_BINDABLE ? l : r;
-				token_t*	tok	= ARENA_PUSH_STRUCT(arena_vmap, token_t);
+				token_t*	tok	= ARENA_PUSH_STRUCT(param->arena_glb, token_t);
 				char*		tok_str	= ARENA_PUSH_ARRAY(
-								arena_vmap, char, var->token->length);
+								param->arena_glb, char, var->token->length);
 
 				memcpy(tok, var->token, sizeof(token_t));
 				memcpy(tok_str, tok->start, tok->length);
 				tok->start = tok_str;
 
 				return_value_t*	mapped_val = ARENA_PUSH_STRUCT(
-								arena_vmap, return_value_t);
-				evaluator_memcpy_value(arena_vmap, mapped_val, val);
-				variables_map_put(vmap, tok, mapped_val);
+								param->arena_glb, return_value_t);
+				evaluator_memcpy_value(param->arena_glb, mapped_val, val);
+				variables_map_put(param->vmap_glb, tok, mapped_val);
 				ret = val;
 			}
 			else
@@ -823,16 +881,16 @@ evaluate(arena_t* arena, variables_map* vmap_tmp, ast_node_t* node, arena_t* are
 			{
 				return_value_t*	var	= l->type == RET_BINDABLE ? l : r;
 				return_value_t*	val	= l->type != RET_BINDABLE ? l : r;
-				token_t*	tok	= ARENA_PUSH_STRUCT(arena, token_t);
-				char*		tok_str	= ARENA_PUSH_ARRAY(arena, char, var->token->length);
+				token_t*	tok	= ARENA_PUSH_STRUCT(param->arena_tmp, token_t);
+				char*		tok_str	= ARENA_PUSH_ARRAY(param->arena_tmp, char, var->token->length);
 
 				memcpy(tok, var->token, sizeof(token_t));
 				memcpy(tok_str, tok->start, tok->length);
 				tok->start = tok_str;
 
-				return_value_t*	mapped_val = ARENA_PUSH_STRUCT(arena, return_value_t);
-				evaluator_memcpy_value(arena, mapped_val, val);
-				variables_map_put(vmap_tmp, tok, mapped_val);
+				return_value_t*	mapped_val = ARENA_PUSH_STRUCT(param->arena_tmp, return_value_t);
+				evaluator_memcpy_value(param->arena_tmp, mapped_val, val);
+				variables_map_put(param->vmap_tmp, tok, mapped_val);
 				ret = val;
 			}
 			else
@@ -1336,13 +1394,22 @@ test_evaluate_base(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena,
+		.arena_glb	= arena,
+		.vmap_tmp	= vmap,
+		.vmap_glb	= vmap,
+		.smap		= 0
+	};
+
 
 	char*	test = "-5 - 10.0 * 5";
 
 	lexer_init(&lexer, test, 13);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -55.0 - EPS && res->f <= -55.0 + EPS);
@@ -1352,7 +1419,7 @@ test_evaluate_base(void)
 	lexer_init(&lexer, test2, 19);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= -255.0 - EPS && res->f <= -255.0 + EPS);
@@ -1368,13 +1435,21 @@ test_evaluate_units_oom(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena,
+		.arena_glb	= arena,
+		.vmap_tmp	= vmap,
+		.vmap_glb	= vmap,
+		.smap		= 0
+	};
 
 	char*	test3 = "ampere(5)";
 	
 	lexer_init(&lexer, test3, 9);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 5);
@@ -1386,7 +1461,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test4, 40);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->oom == OOM_MILLI);
@@ -1398,7 +1473,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test5, 24);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= 5005.0 - EPS && res->f <= 5005.0 + EPS);
@@ -1410,7 +1485,7 @@ test_evaluate_units_oom(void)
 	lexer_init(&lexer, test6, 33);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f >= 0.025 - EPS && res->f <= 0.025 + EPS);
@@ -1428,6 +1503,14 @@ test_evaluate_binding(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena,
+		.arena_glb	= arena,
+		.vmap_tmp	= vmap,
+		.vmap_glb	= vmap,
+		.smap		= 0
+	};
 
 	char*	test7	= "x :: 10";
 	token_t	x	= { test7, TK_ID, 1, 1 };
@@ -1435,7 +1518,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test7, 7);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 10);
@@ -1448,7 +1531,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test8, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 20);
@@ -1460,7 +1543,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test9, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 20);
@@ -1473,7 +1556,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test10, 6);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 	
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 5);
@@ -1486,7 +1569,7 @@ test_evaluate_binding(void)
 	lexer_init(&lexer, test11, 5);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 15);
@@ -1504,13 +1587,21 @@ test_evaluate_list(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena,
+		.arena_glb	= arena,
+		.vmap_tmp	= vmap,
+		.vmap_glb	= vmap,
+		.smap		= 0
+	};
 	
 	char*	test1	= "1, 2, 3";
 
 	lexer_init(&lexer, test1, 7);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 1);
@@ -1535,7 +1626,7 @@ test_evaluate_list(void)
 	lexer_init(&lexer, test2, 14);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 1);
@@ -1585,7 +1676,7 @@ test_evaluate_list(void)
 	lexer_init(&lexer, test3, 4);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert(res->f == 2);
@@ -1604,13 +1695,21 @@ test_evaluate_complex(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena,
+		.arena_glb	= arena,
+		.vmap_tmp	= vmap,
+		.vmap_glb	= vmap,
+		.smap		= 0
+	};
 	
 	char*	test1	= "5 + 5 * I";
 
 	lexer_init(&lexer, test1, 9);
 
 	tree	= parser_parse_expression(arena, &lexer, 0);
-	res	= evaluate(arena, vmap, tree, arena, vmap);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_COMPLEX);
 	assert(fabs(creal(res->c) - 5) < EPS);
@@ -1629,6 +1728,14 @@ test_evaluate_func(void)
 	lexer_t		lexer;
 	ast_node_t*	tree	= 0;
 	return_value_t*	res	= 0;
+	evaluate_param_t	param =
+	{
+		.arena_tmp	= arena1,
+		.arena_glb	= arena2,
+		.vmap_tmp	= vmap1,
+		.vmap_glb	= vmap2,
+		.smap		= 0
+	};
 	
 	char*	e	= "circle :: func(2*PI*_R)";
 	char*	test1	= ARENA_PUSH_ARRAY(arena1, char, 23);
@@ -1637,7 +1744,7 @@ test_evaluate_func(void)
 	lexer_init(&lexer, test1, 23);
 
 	tree	= parser_parse_expression(arena1, &lexer, 0);
-	res	= evaluate(arena1, vmap1, tree, arena2, vmap2);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FUNC);
 	assert(res->func);
@@ -1651,7 +1758,7 @@ test_evaluate_func(void)
 	lexer_init(&lexer, test2, 12);
 
 	tree	= parser_parse_expression(arena1, &lexer, 0);
-	res	= evaluate(arena1, vmap1, tree, arena2, vmap2);
+	res	= evaluate(tree, &param);
 
 	assert(res->type == RET_FLOAT);
 	assert((res->f - (2*M_PI*5)) < EPS);
