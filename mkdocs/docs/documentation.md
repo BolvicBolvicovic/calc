@@ -412,3 +412,17 @@ By extension, variables are not bound to their previous values.
 Deletes a variable from the variables hashmap.
 By extension, the variable can be bound to a new value.
 Use in extreme cases only.
+
+### `plot(x_name, x_start, x_end, x_inc, y, style)`
+
+Opens a window and plots a function in a 2D plan in that window.
+It should be possible to plot many functions in that 2D plan.
+`style` is optional.
+
+**Available styles and colors**
+- `PLOT_LINE` *(default)*
+- `PLOT_DOT`
+- `PLOT_TRAIT`
+- `PLOT_RED`
+- `PLOT_GREEN` *(default)*
+- `PLOT_BLUE`

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <builtins.h>
+#include <plot.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -72,6 +73,8 @@ evaluator_hash(token_t* t)
 static inline void
 evaluator_print_res_val(arena_t* arena, return_value_t* res)
 {
+	char*	buf = ARENA_PUSH_ARRAY(arena, char, 128);
+
 	switch (res->type)
 	{
 	case RET_FLOAT:
@@ -82,16 +85,19 @@ evaluator_print_res_val(arena_t* arena, return_value_t* res)
 		break;
 	case RET_FUNC:
 		// TODO: Find a way to print expression properly.
-		char*	buf = ARENA_PUSH_ARRAY(arena, char, 128);
 		s32	idx = 0;
 		parser_expr_to_str(res->func, buf, &idx);
 		buf[idx] = 0;
 		printf("%s", buf);
 		return;
+	case RET_BINDABLE:
+		token_t*tok = &res->func->token;
+		memcpy(buf, tok->start, tok->length);
+		buf[tok->length] = 0;
+		printf("%s", buf);
+		return;
 	case RET_ERR:
 		error_print(res->token, res->err_code);
-		return;
-	default:
 		return;
 	}
 	
@@ -493,6 +499,19 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 					trigo_tan(ret);
 					return ret;
 				}
+				else if (memcmp("abs", token_buf, 3) == 0)
+				{
+					if (ret->type == RET_FLOAT)
+						ret->f = fabs(ret->f);
+					else if (ret->type == RET_COMPLEX)
+						ret->c = cabs(ret->c);
+					else
+					{
+						ret->type	= RET_ERR;
+						ret->err_code	= ERR_WRONG_ARG;
+					}
+					return ret;
+				}
 				break;
 			case 4:
 				if (memcmp("volt", token_buf, 4) == 0)
@@ -523,6 +542,39 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 				else if (memcmp("cbrt", token_buf, 4) == 0)
 				{
 					roots_cbrt(ret);
+					return ret;
+				}
+				else if (memcmp("plot", token_buf, 4) == 0)
+				{
+					if (ret->type == RET_ERR)
+						return ret;
+
+					return_value_t*	val_xe	= ret->next && ret->next->next ? ret->next->next : 0;
+					return_value_t*	val_xi	= val_xe ? val_xe->next : 0; 
+					return_value_t* val_y	= val_xi ? val_xi->next : 0;
+					token_t*	x_name	= &ret->func->token;
+					f64		x_start	= ret->next ? ret->next->f : 0;
+					f64		x_end	= val_xe ? val_xe->f : 0;
+					f64		x_inc	= val_xi ? val_xi->f : 0;
+					ast_node_t*	y	= val_y ? val_y->func : 0;
+					return_value_t*	style	= val_y ? val_y->next : 0;
+					plot_style_t	styles	= 0;
+					
+
+					while (style)
+					{
+						styles |= (u64)style->f;
+						style	= style->next;
+					}
+					
+					s32	err = plot(param->arena_tmp, x_name, x_start, x_end, x_inc, y, styles);
+					
+					if (err == -1)
+						return 0;
+					
+					ret->type	= RET_ERR;
+					ret->err_code	= err;
+					ret->next	= 0;
 					return ret;
 				}
 				break;
@@ -755,7 +807,10 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			if (var && *var)
 				memcpy(ret, *var, sizeof(return_value_t));
 			else
+			{
 				ret->type = RET_BINDABLE;
+				ret->func = node;
+			}
 		}
 
 		break;
@@ -815,7 +870,7 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			return	l->type == RET_ERR ? l : r;
 		}
 
-		if (token->symbol != TK_BIND && token->symbol != TK_TMP_BIND
+		if (token->symbol != TK_BIND && token->symbol != TK_TMP_BIND && token->symbol != TK_LIST
 			&& (l->type == RET_BINDABLE  || r->type == RET_BINDABLE))
 		{
 			ret->type	= RET_ERR;
