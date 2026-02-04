@@ -70,6 +70,33 @@ evaluator_hash(token_t* t)
 	return hash;
 }
 
+void
+evaluator_init_const_map(variables_map* vmap)
+{
+#define VMAP_STR_K_TYPE_V(vmap, name, str, val, Type)\
+static token_t		name##_token = {.start = (str), .length = sizeof(str)-1};\
+static return_value_t	name##_val = {.oom = OOM_NONE, .type = Type, .c = val};\
+variables_map_put(vmap, &name##_token, &name##_val)
+
+#define VMAP_STR_K_FLOAT_V(vmap, name, str, val)\
+	VMAP_STR_K_TYPE_V(vmap, name, str, val, RET_FLOAT)
+
+#define VMAP_STR_K_COMPLEX_V(vmap, name, str, val)\
+	VMAP_STR_K_TYPE_V(vmap, name, str, val, RET_COMPLEX)
+
+	VMAP_STR_K_FLOAT_V(vmap, pi, "PI", M_PI);
+	VMAP_STR_K_FLOAT_V(vmap, e, "E", M_E);
+	VMAP_STR_K_COMPLEX_V(vmap, i, "I", I);
+	VMAP_STR_K_FLOAT_V(vmap, plot_line, "PL_LINE", PLOT_LINE);
+	VMAP_STR_K_FLOAT_V(vmap, plot_star, "PL_STAR", PLOT_STAR);
+	VMAP_STR_K_FLOAT_V(vmap, plot_trait, "PL_TRAIT", PLOT_TRAIT);
+	VMAP_STR_K_FLOAT_V(vmap, plot_red, "PL_RED", PLOT_RED);
+	VMAP_STR_K_FLOAT_V(vmap, plot_green, "PL_GREEN", PLOT_GREEN);
+	VMAP_STR_K_FLOAT_V(vmap, plot_blue, "PL_BLUE", PLOT_BLUE);
+	VMAP_STR_K_FLOAT_V(vmap, plot_complex, "PL_COMPLEX", PLOT_COMPLEX);
+	VMAP_STR_K_FLOAT_V(vmap, plot_surf, "PL_SURF", PLOT_SURF);
+}
+
 static inline void
 evaluator_print_res_val(arena_t* arena, return_value_t* res)
 {
@@ -552,22 +579,26 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 					return_value_t*	val_xe	= ret->next && ret->next->next ? ret->next->next : 0;
 					return_value_t*	val_xi	= val_xe ? val_xe->next : 0; 
 					return_value_t* val_y	= val_xi ? val_xi->next : 0;
-					token_t*	x_name	= &ret->func->token;
+					static token_t	z	= {.start = "z", .length = 1};
+					token_t*	x_name	= ret->type == RET_BINDABLE
+						? &ret->func->token
+						// TODO: Fix it with a cleaner solution
+						: &z;
 					f64		x_start	= ret->next ? ret->next->f : 0;
 					f64		x_end	= val_xe ? val_xe->f : 0;
 					f64		x_inc	= val_xi ? val_xi->f : 0;
 					ast_node_t*	y	= val_y ? val_y->func : 0;
-					return_value_t*	style	= val_y ? val_y->next : 0;
-					plot_style_t	styles	= 0;
+					return_value_t*	opt	= val_y ? val_y->next : 0;
+					u64		opts	= 0;
 					
 
-					while (style)
+					while (opt)
 					{
-						styles |= (u64)style->f;
-						style	= style->next;
+						opts	|= (u64)opt->f;
+						opt	= opt->next;
 					}
 					
-					s32	err = plot(param->arena_tmp, x_name, x_start, x_end, x_inc, y, styles);
+					s32	err = plot(param, x_name, x_start, x_end, x_inc, y, opts);
 					
 					if (err == -1)
 						return 0;
@@ -685,6 +716,7 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			default:
 			} // switch (node->token.length)
 
+			// List indexing
 			return_value_t**	var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
@@ -738,28 +770,6 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			// Constants
 			switch (token_len)
 			{
-			case 1:
-				if (*token_buf == 'E')
-				{
-					ret->type = RET_FLOAT;
-					ret->f = M_E;
-					return ret;
-				}
-				else if (*token_buf == 'I')
-				{
-					ret->type = RET_COMPLEX;
-					ret->c = I;
-					return ret;
-				}
-				break;
-			case 2:
-				if (memcmp("PI", token_buf, 2) == 0)
-				{
-					ret->type = RET_FLOAT;
-					ret->f = M_PI;
-					return ret;
-				}
-				break;
 			case 4:
 				if (memcmp("exit", token_buf, 4) == 0)
 					exit(0);
@@ -799,7 +809,10 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			default:
 			}
 			// Variables
-			return_value_t**	var = variables_map_get(param->vmap_glb, token);
+			return_value_t**	var = variables_map_get(param->vmap_const, token);
+				
+			if (!var || !*var)
+				var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
 				var = variables_map_get(param->vmap_tmp, token);
@@ -1564,6 +1577,7 @@ test_evaluate_binding(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
 
@@ -1648,6 +1662,7 @@ test_evaluate_list(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
 	
@@ -1756,8 +1771,11 @@ test_evaluate_complex(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
+
+	evaluator_init_const_map(vmap);
 	
 	char*	test1	= "5 + 5 * I";
 
@@ -1789,8 +1807,11 @@ test_evaluate_func(void)
 		.arena_glb	= arena2,
 		.vmap_tmp	= vmap1,
 		.vmap_glb	= vmap2,
+		.vmap_const	= vmap2,
 		.smap		= 0
 	};
+	
+	evaluator_init_const_map(vmap2);
 	
 	char*	e	= "circle :: func(2*PI*_R)";
 	char*	test1	= ARENA_PUSH_ARRAY(arena1, char, 23);
@@ -1819,13 +1840,36 @@ test_evaluate_func(void)
 	assert((res->f - (2*M_PI*5)) < EPS);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
+}
 
+static void
+test_evaluator_init_const_map(void)
+{
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+
+	evaluator_init_const_map(vmap);
+	
+	return_value_t** pi	= variables_map_get(vmap, &(token_t){.start = "PI", .length = 2});
+	return_value_t** e	= variables_map_get(vmap, &(token_t){.start = "E", .length = 1});
+	return_value_t** i	= variables_map_get(vmap, &(token_t){.start = "I", .length = 1});
+
+	assert(pi && *pi);
+	assert(e && *e);
+	assert(i && *i);
+
+	assert((*pi)->f - M_PI < EPS);
+	assert((*e)->f - M_E < EPS);
+	assert(cimag((*i)->c) - 1 < EPS);
+
+	arena_release(arena);
 }
 
 void
 test_evaluate(void)
 {
 	test_evaluator_atof();
+	test_evaluator_init_const_map();
 	test_evaluate_base();
 	test_evaluate_units_oom();
 	test_evaluate_binding();

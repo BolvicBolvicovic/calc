@@ -15,10 +15,11 @@ main()
 	ast_node_t*	tree		= 0;
 	arena_t*	arena_tmp	= ARENA_ALLOC();
 	arena_t*	arena_glb	= ARENA_ALLOC();
-	arena_t*	arena_smap	= ARENA_ALLOC();
+	arena_t*	arena_const	= ARENA_ALLOC();
 	variables_map*	vmap_tmp	= variables_map_new(arena_tmp, 100);
 	variables_map*	vmap_glb	= variables_map_new(arena_glb, 1000);
-	string_map*	smap		= string_map_new(arena_smap, 100);
+	variables_map*	vmap_const	= variables_map_new(arena_const, 100);
+	string_map*	smap		= string_map_new(arena_const, 100);
 	char*		line		= 0;
 	return_value_t* res		= 0;
 	u32		l_size		= 0;
@@ -113,6 +114,8 @@ main()
 		"> 25 watt\n"
 		"> More information can be found in ./mkdocs/docs/documentation.md\n");
 
+	evaluator_init_const_map(vmap_const);
+
 	while ((line = readline(PROMPT)))
 	{
 		if ((l_size = strlen(line)))
@@ -128,6 +131,7 @@ main()
 					.arena_glb	= arena_glb,
 					.vmap_tmp	= vmap_tmp,
 					.vmap_glb	= vmap_glb,
+					.vmap_const	= vmap_const,
 					.smap		= smap});
 		
 		if (res)

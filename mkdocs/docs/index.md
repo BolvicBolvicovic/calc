@@ -28,7 +28,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### Validated
 
-- plot function
+*NONE*
 
 ### Refused
 
@@ -39,7 +39,7 @@ List of all features that I thought about and that have been validated or not, i
 
 ### In Development
 
-*NONE*
+- plot function: split the `PL_SURF` into fractal name
 
 ### Finished
 
@@ -119,6 +119,15 @@ calc> f(_R:5)
 ```
 
 This should be fixed if I decide to handle unbound functions (i.e. `func(5+_R)(_R:5)`).
+
+**assigning negative values**
+
+```
+calc> c :: −0.7269 + (0.1889 * I)
+> -78
+```
+
+What happens is that the minus is not the right ascii char. It has been pasted from Wikipedia.
 
 ## Lexer
 
