@@ -13,6 +13,7 @@ ast_node_init(ast_node_t* node, expr_t type, token_t* token)
 	node->type = type;
 	node->left = 0;
 	node->right= 0;
+	node->cached=0;
 	
 	memcpy(&node->token, token, sizeof(token_t));
 }

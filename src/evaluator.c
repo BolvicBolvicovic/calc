@@ -87,6 +87,7 @@ variables_map_put(vmap, &name##_token, &name##_val)
 	VMAP_STR_K_FLOAT_V(vmap, pi, "PI", M_PI);
 	VMAP_STR_K_FLOAT_V(vmap, e, "E", M_E);
 	VMAP_STR_K_COMPLEX_V(vmap, i, "I", I);
+	VMAP_STR_K_COMPLEX_V(vmap, c, "C", 0);
 	VMAP_STR_K_FLOAT_V(vmap, plot_line, "PL_LINE", PLOT_LINE);
 	VMAP_STR_K_FLOAT_V(vmap, plot_star, "PL_STAR", PLOT_STAR);
 	VMAP_STR_K_FLOAT_V(vmap, plot_trait, "PL_TRAIT", PLOT_TRAIT);
@@ -95,6 +96,10 @@ variables_map_put(vmap, &name##_token, &name##_val)
 	VMAP_STR_K_FLOAT_V(vmap, plot_blue, "PL_BLUE", PLOT_BLUE);
 	VMAP_STR_K_FLOAT_V(vmap, plot_complex, "PL_COMPLEX", PLOT_COMPLEX);
 	VMAP_STR_K_FLOAT_V(vmap, plot_surf, "PL_SURF", PLOT_SURF);
+	VMAP_STR_K_FLOAT_V(vmap, plot_julia, "PL_JULIA", PLOT_JULIA);
+	VMAP_STR_K_FLOAT_V(vmap, plot_mandelbrot, "PL_MANDELBROT", PLOT_MANDELBROT);
+	VMAP_STR_K_FLOAT_V(vmap, plot_burning_ship, "PL_BURNING_SHIP", PLOT_BURNING_SHIP);
+	VMAP_STR_K_FLOAT_V(vmap, plot_zoom_in, "PL_ZOOM_IN", PLOT_ZOOM_IN);
 }
 
 static inline void
@@ -456,6 +461,9 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 		return ret;
 	}
 
+	if (node->cached)
+		return node->cached;
+
 	ret->type	= RET_FLOAT;
 	ret->token	= &node->token;
 
@@ -591,6 +599,13 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 					return_value_t*	opt	= val_y ? val_y->next : 0;
 					u64		opts	= 0;
 					
+					if (!val_y || val_y->type != RET_FUNC)
+					{
+						ret->next = 0;
+						ret->type = RET_ERR;
+						ret->err_code = ERR_WRONG_ARG;
+						return ret;
+					}
 
 					while (opt)
 					{
@@ -818,7 +833,10 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 				var = variables_map_get(param->vmap_tmp, token);
 				
 			if (var && *var)
+			{
+				node->cached = *var;
 				memcpy(ret, *var, sizeof(return_value_t));
+			}
 			else
 			{
 				ret->type = RET_BINDABLE;
@@ -828,6 +846,7 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 
 		break;
 	case EXPR_CONST:
+		node->cached	= ARENA_PUSH_STRUCT(param->arena_glb, return_value_t);
 		ret->type	= RET_FLOAT;
 		ret->f		= evaluator_atof(token);
 		
@@ -844,9 +863,12 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			{
 				ret->type	= RET_ERR;
 				ret->err_code	= ERR_OUT_OF_BOUND;
+				evaluator_memcpy_value(param->arena_glb, node->cached, ret);
 				return ret;
 			}
 		}
+
+		evaluator_memcpy_value(param->arena_glb, node->cached, ret);
 		break;
 	case EXPR_UOP:
 		switch (token->symbol)

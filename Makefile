@@ -39,7 +39,7 @@ tests: clean $(TESTER)
 	./$(TESTER)
 
 bench: clean $(BENCH)
-	./$(BENCH)
+	perf stat ./$(BENCH) > /dev/null
 
 serve_docs:
 	cd mkdocs && mkdocs serve

@@ -13,14 +13,18 @@
 typedef enum plot_opt_t	plot_opt_t;
 enum plot_opt_t
 {
-	PLOT_LINE	= BIT0,
-	PLOT_STAR	= BIT1,
-	PLOT_TRAIT	= BIT2,
-	PLOT_RED	= BIT3,
-	PLOT_GREEN	= BIT4,
-	PLOT_BLUE	= BIT5,
-	PLOT_COMPLEX	= BIT6,
-	PLOT_SURF	= BIT7,
+	PLOT_LINE		= BIT0,
+	PLOT_STAR		= BIT1,
+	PLOT_TRAIT		= BIT2,
+	PLOT_RED		= BIT3,
+	PLOT_GREEN		= BIT4,
+	PLOT_BLUE		= BIT5,
+	PLOT_COMPLEX		= BIT6,
+	PLOT_SURF		= BIT7,
+	PLOT_MANDELBROT		= BIT8,
+	PLOT_JULIA		= BIT9,
+	PLOT_BURNING_SHIP	= BIT10,
+	PLOT_ZOOM_IN		= BIT11,
 };
 
 typedef struct dots_t	dots_t;

@@ -4,14 +4,17 @@
 #include <math.h>
 
 static dots_t*
-plot_get_dots_surface
+plot_get_dots_fract
 (
 	evaluate_param_t* param,
 	token_t*	x_name,
 	ast_node_t*	y,
 	f64		bound,
+	f64		center_re,
+	f64		center_im,
 	u64		range,
-	f64		threshold
+	f64		threshold,
+	u64		opts
 )
 {
 	dots_t*	dots = ARENA_PUSH_STRUCT(param->arena_tmp, dots_t);
@@ -27,16 +30,17 @@ plot_get_dots_surface
 		.type	= RET_COMPLEX,
 		.oom	= OOM_NONE});
 
-	return_value_t*	param_var = *variables_map_get(param->vmap_tmp, x_name);
+	return_value_t*	param_var	= *variables_map_get(param->vmap_tmp, x_name);
+	return_value_t*	param_c		= *variables_map_get(param->vmap_const,
+						&(token_t){.start="C", .length=1});
 
-	f64	aspect_ratio = (f64)(PLOT_COLS - PLOT_PADDING_X) / (f64)(PLOT_ROWS - PLOT_PADDING_Y);
-
-	f64	re_min = -bound;
-	f64	re_max = bound;
-	f64	im_min = -bound / aspect_ratio;
-	f64	im_max = bound / aspect_ratio;
-	f64	re_range = re_max - re_min;
-	f64	im_range = im_max - im_min;
+	f64	aspect_ratio	= (f64)(PLOT_COLS - PLOT_PADDING_X) / (f64)(PLOT_ROWS - PLOT_PADDING_Y);
+	f64	re_min		= center_re - bound;
+	f64	re_max		= center_re + bound;
+	f64	im_min		= center_im - bound / aspect_ratio;
+	f64	im_max		= center_im + bound / aspect_ratio;
+	f64	re_range	= re_max - re_min;
+	f64	im_range	= im_max - im_min;
 
 	dots->x_min = re_min;
 	dots->x_max = re_max;
@@ -55,13 +59,19 @@ plot_get_dots_surface
 		for (u64 col = 0; col < PLOT_COLS - PLOT_PADDING_X; col++)
 		{
 			f64		re = re_min + (re_range * col) / (PLOT_COLS - PLOT_PADDING_X - 1);
-			param_var->c = re + im * I;
 
-			return_value_t*	ret = evaluate(y, param);
-			f64		cnt = 1.0;
+			param_c->c	= re + im * I;
+			param_var->c	= opts & PLOT_MANDELBROT ? 0
+					: opts & PLOT_JULIA ? re + im * I
+					: fabs(re) + fabs(im) * I;
 
-			for (; cabs(ret->c) < threshold && cnt < range; cnt+=1)
+			return_value_t*	ret;
+			f64		cnt = 0.0;
+			// TODO: thread this.
+			do
 			{
+				ret = evaluate(y, param);
+
 				if (ret->type == RET_ERR)
 				{
 					dots->err	= 1;
@@ -69,9 +79,12 @@ plot_get_dots_surface
 					return dots;
 				}
 
-				param_var->c = ret->c;
-				ret = evaluate(y, param);
-			}
+				param_var->c	= opts & PLOT_BURNING_SHIP
+						? fabs(creal(ret->c)) + fabs(cimag(ret->c)) * I
+						: ret->c;
+
+				cnt+=1;
+			} while (cabs(ret->c) < threshold && cnt < range);
 
 			dots->x[idx] = re;
 			dots->y[idx] = im;
@@ -84,8 +97,9 @@ plot_get_dots_surface
 		}
 	}
 
-	dots->z_min = z_min;
-	dots->z_max = z_max;
+	dots->z_min	= z_min;
+	dots->z_max	= z_max;
+	param_c->c	= 0;
 
 	return dots;
 }
@@ -108,8 +122,8 @@ plot_get_dots_normal
 	dots->y = ARENA_PUSH_ARRAY(param->arena_tmp, f64, range);
 	
 	variables_map_put(param->vmap_tmp, x_name, &(return_value_t)
-		{.f	= x_start,
-		.type	= RET_FLOAT,
+		{.c	= x_start,
+		.type	= RET_COMPLEX,
 		.oom	= OOM_NONE});
 
 	return_value_t*	ret = evaluate(y, param);
@@ -307,39 +321,73 @@ plot_get_buffer
 }
 
 static void
-get_ansi_color_rainbow(f64 normalized, char* color_code, u64 max_len)
+get_ansi_color(f64 normalized, char* color_code, u64 max_len)
 {
 	u8 r, g, b;
-	f64 hue = normalized * 300.0;  // 0-300 degrees (red to purple)
-
-	// Simple HSV to RGB conversion (S=1, V=1)
-	f64 h = hue / 60.0;
-	s32 i = (s32)h;
-	f64 f = h - i;
-
-	switch (i % 6)
+	
+	// Clamp normalized to [0, 1]
+	if (normalized < 0.0) normalized = 0.0;
+	if (normalized > 1.0) normalized = 1.0;
+	
+	// Define transition zones
+	f64 fade_in = 0.1;   // 0.0-0.1: black to blue
+	f64 fade_out = 0.9;  // 0.9-1.0: red to full red
+	
+	if (normalized < fade_in)
 	{
-		case 0: r = 255; g = (u8)(f * 255); b = 0; break;
-		case 1: r = (u8)((1-f) * 255); g = 255; b = 0; break;
-		case 2: r = 0; g = 255; b = (u8)(f * 255); break;
-		case 3: r = 0; g = (u8)((1-f) * 255); b = 255; break;
-		case 4: r = (u8)(f * 255); g = 0; b = 255; break;
-		case 5: r = 255; g = 0; b = (u8)((1-f) * 255); break;
-		default: r = 0; g = 0; b = 0; break;
+		// Fade from black to blue
+		f64 t = normalized / fade_in;
+		r = 0;
+		g = 0;
+		b = (u8)(t * 255.0 + 0.5);
 	}
-
+	else if (normalized > fade_out)
+	{
+		// Fade from rainbow-red to pure red
+		f64 t = (normalized - fade_out) / (1.0 - fade_out);
+		r = 255;
+		g = (u8)((1.0 - t) * 255.0 + 0.5);  // Fade out green
+		b = 0;
+	}
+	else
+	{
+		// Rainbow section: blue (240°) to red (0°/360°)
+		f64 rainbow_pos = (normalized - fade_in) / (fade_out - fade_in);
+		f64 hue = (1.0 - rainbow_pos) * 240.0;  // 240° to 0°
+		
+		f64 h = hue / 60.0;
+		s32 i = (s32)h;
+		f64 f = h - i;
+		
+		f64 q = 1 - f;
+		f64 t = f;
+		
+		f64 rf, gf, bf;
+		switch (i % 6)
+		{
+		case 0: rf = 1; gf = t; bf = 0; break;
+		case 1: rf = q; gf = 1; bf = 0; break;
+		case 2: rf = 0; gf = 1; bf = t; break;
+		case 3: rf = 0; gf = q; bf = 1; break;
+		case 4: rf = t; gf = 0; bf = 1; break;
+		case 5: rf = 1; gf = 0; bf = q; break;
+		default: rf = 0; gf = 0; bf = 0; break;
+		}
+		
+		r = (u8)(rf * 255.0 + 0.5);
+		g = (u8)(gf * 255.0 + 0.5);
+		b = (u8)(bf * 255.0 + 0.5);
+	}
+	
 	snprintf(color_code, max_len, "\033[38;2;%d;%d;%dm", r, g, b);
 }
 
 static char*
-plot_get_buffer_surface
+plot_get_buffer_fract
 (arena_t* arena, dots_t* dots)
 {
 	f64	z_range = dots->z_max - dots->z_min;
-
-	// Estimate buffer size with ANSI codes
-	// Each colored cell needs: color code (~20 chars) + character + reset (~4 chars)
-	// Note: This is a rough estimate, we'll use a dynamic approach with sprintf
+	printf("> z_range: %g\n", z_range);
 	u64	base_size = (PLOT_COLS + 1) * (PLOT_ROWS + 2) + 1;
 	u64	rbufsize = base_size + (PLOT_ROWS * PLOT_COLS * 30);  // Extra space for ANSI codes
 	char*	rbuffer	= ARENA_PUSH_ARRAY(arena, char, rbufsize);
@@ -348,7 +396,6 @@ plot_get_buffer_surface
 
 	u64	write_pos = 0;
 
-	// Add Y-axis labels (imaginary axis)
 	char	y_max_str[32];
 	char	y_min_str[32];
 
@@ -392,17 +439,14 @@ plot_get_buffer_surface
 		{
 			for (u64 col = 0; col < PLOT_COLS - PLOT_PADDING_X; col++)
 			{
-				// Normalize z-value
-				f64	normalized;
-
-				if (z_range > 0.0)
-					normalized = (dots->z[idx] - dots->z_min) / z_range;
-				else
-					normalized = 0.5;
-
-				// Get ANSI color code
 				char	color_code[32];
-				get_ansi_color_rainbow(normalized, color_code, sizeof(color_code));
+				if (z_range > EPS)
+				{
+					f64	normalized = (dots->z[idx] - dots->z_min) / z_range;
+					get_ansi_color(normalized, color_code, sizeof(color_code));
+				}
+				else
+					memcpy(color_code, "\033[38;2;0;0;0m", 14);
 
 				// Write colored character (using a block character for better visibility)
 				write_pos += sprintf(rbuffer + write_pos, "%s█\033[0m", color_code);
@@ -436,7 +480,8 @@ plot_get_buffer_surface
 	write_pos += sprintf(rbuffer + write_pos, "%*s", (s32)y_label_width, "");
 	write_pos += sprintf(rbuffer + write_pos, "%s", x_label_start);
 
-	u64	available_space = (PLOT_COLS - PLOT_PADDING_X) - strlen(x_label_start) - strlen(x_label_end);
+	u64	available_space =
+		(PLOT_COLS - PLOT_PADDING_X) - strlen(x_label_start) - strlen(x_label_end);
 
 	if (available_space > 10)
 	{
@@ -476,42 +521,70 @@ plot
 {
 	f64	x_range	= x_end - x_start;
 	u64	range	= (u64)(x_range / x_inc) + 1;
+	f64	zoom	= x_start;
+	f64	zoom_in	= opts & PLOT_ZOOM_IN ? pow(10.0, floor(log10(zoom))-1) : zoom;
+	f64	zoom_center_re = 0.0;
+	f64	zoom_center_im = 0.0;
 	dots_t*	dots;
 	char*	rbuffer;
 
-	// TODO: rename SURF in JULIA/MANDELBROT/ETC...
-	if (opts & PLOT_SURF)
+	if (opts & PLOT_MANDELBROT)
 	{
-		// Surface plot mode (x_start = bound, x_end = range and x_inc = threshold)
-		dots	= plot_get_dots_surface(param, x_name, y, x_start, x_end, x_inc);
-
-		if (dots->err)
-			return dots->err_code;
-
-		range	= (PLOT_ROWS - PLOT_PADDING_Y) * (PLOT_COLS - PLOT_PADDING_X);
-		rbuffer	= plot_get_buffer_surface(param->arena_tmp, dots);
+		zoom_center_re = -0.7269;
+		zoom_center_im = 0.1889;
 	}
-	else
+	else if (opts & PLOT_BURNING_SHIP)
 	{
-		// Normal plot mode
-		dots	= plot_get_dots_normal(param, x_name, x_start, x_inc, y, range, opts);
-
-		if (dots->err)
-			return dots->err_code;
-
-		x_start	= opts & PLOT_COMPLEX ? dots->x_min : x_start;
-		x_end	= opts & PLOT_COMPLEX ? dots->x_max : x_end;
-
-		rbuffer = plot_get_buffer(param->arena_tmp, dots, opts, range, x_start, x_end);
+		zoom_center_re = -1.75;
+		zoom_center_im = -0.035;
 	}
 
-	char	expr[200];
-	s32	idx = 0;
+	while (zoom > EPS)
+	{
+		arena_temp_t	atmp = arena_temp_begin(param->arena_tmp);
 
-	parser_expr_to_str(y, expr, &idx);
-	expr[idx] = 0;
-	printf("> for y :: %s\n", expr);
-	printf("%s\n", rbuffer);
+		if (opts & (PLOT_JULIA | PLOT_MANDELBROT | PLOT_BURNING_SHIP))
+		{
+			// Julia/Mandelbrot/Burning Ship plot mode (x_end = range and x_inc = threshold)
+			// If Mandelbrot/Burning Ship opt, one should add the C variable to the equation.
+			dots	= plot_get_dots_fract(param, x_name, y,
+					zoom, zoom_center_re, zoom_center_im, x_end, x_inc, opts);
+
+			if (dots->err)
+				return dots->err_code;
+
+			range	= (PLOT_ROWS - PLOT_PADDING_Y) * (PLOT_COLS - PLOT_PADDING_X);
+			rbuffer	= plot_get_buffer_fract(param->arena_tmp, dots);
+		}
+		else
+		{
+			// Normal plot mode
+			dots	= plot_get_dots_normal(param, x_name, x_start, x_inc, y, range, opts);
+
+			if (dots->err)
+				return dots->err_code;
+
+			x_start	= opts & PLOT_COMPLEX ? dots->x_min : x_start;
+			x_end	= opts & PLOT_COMPLEX ? dots->x_max : x_end;
+
+			rbuffer = plot_get_buffer(param->arena_tmp, dots, opts, range, x_start, x_end);
+		}
+
+		char	expr[200];
+		s32	idx = 0;
+
+		parser_expr_to_str(y, expr, &idx);
+		expr[idx] = 0;
+		printf("> zoom :: %g\n", zoom);
+		printf("> for y :: %s\n", expr);
+		printf("%s\n", rbuffer);
+		
+		fflush(stdout);
+
+		arena_temp_end(atmp);
+		zoom -= zoom_in;
+		zoom_in = pow(10.0, floor(log10(zoom))-1);
+	}
 
 	return -1;
 }
