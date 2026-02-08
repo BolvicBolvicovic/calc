@@ -413,16 +413,76 @@ Deletes a variable from the variables hashmap.
 By extension, the variable can be bound to a new value.
 Use in extreme cases only.
 
-### `plot(x_name, x_start, x_end, x_inc, y, style)`
+### `plot(x_name, x_start, x_end, x_inc, y, opts)`
 
-Opens a window and plots a function in a 2D plan in that window.
-It should be possible to plot many functions in that 2D plan.
-`style` is optional.
+Plots a function in a 2D plan in the terminal. `opts` is optional.
 
-**Available styles and colors**
-- `PLOT_LINE` *(default)*
-- `PLOT_DOT`
-- `PLOT_TRAIT`
-- `PLOT_RED`
-- `PLOT_GREEN` *(default)*
-- `PLOT_BLUE`
+```
+calc> y::func(E^(x*I)*x)
+> ((E)^((x)*(I)))*(x)
+calc> plot(x, 0, 40, 0.01, y, PL_COMPLEX)
+> zoom  :: 0
+> for y :: ((E)^((x)*(I)))*(x)
+> 39.282|                           *******************************
+>        |                    *******                             *******
+>        |                ****                                          *****
+>        |            ****             *************************            ****
+> 30.902|           ***          *******                       *******          ***
+>        |                   *****                                   *****         ***
+>        |                ****            *******************            ****        ***
+>        |             ***          *******                 *******         ****       ***
+> 22.521|           ***         *****                             *****        ***       ***
+>        |         **        ****             ***********             ****       ***       **
+>        |       **       ****         *******           *******         ***       ***      **
+>        |     ***      ***        *****                       ****        ***       **       **
+>        |    **       **        ***              ***             ****       **       **       **
+> 14.141|    **      ***       **         ********* *********        ***       **      **       *
+>        |  **      **       **        ****                 ****       **       **      **      **
+>        | **      **       **       ***                       ***      **       **      **      **
+>        |**      **       *       **        ************        **       *       *       *       *
+> 5.7604| *       *       *       **       ***           ***      **      **      **      **      *
+>        |*       *      **      **      ***               **      *       *       *       *      *
+>        |*      *       *       *       *       *****      *      **      *       *       *      **
+>        |*      *       *       *      **      **  **     **      **      *       *       *      *
+>  -2.62| *      *       *       *      **      **        **       *       *       *      **      *
+>        |*      **      *       *       **      **********       **      **      **      *       *
+>        |*       *      **      **       **                    ***      **      **      **      **
+>        |**      **      **      **       ****              ****       **      **       *       *
+>        | *       *       **      ***        *******  *******        ***      **       **      **
+>    -11|  **      **       **       ***            ***             ***       **       **      **
+>        |  **       **      ***       ****                     *****       ***       **      **
+>        |   **       **       ***         ******         *******         ***       **       **
+>        |    **       ***       ****           ***********            ****       ***       **
+> -19.381|      **       ***        ****                            ****        ***       ***
+>        |       ***       ***         *******                ******          ***       ***
+>        |         ***        ***            ******************            ***        ***
+>        |           ***        *****                                 *****         ***
+> -27.761|             ****         *******                      ******          ***
+>        |                ****            ************************            ****
+>        |                   *****                                        ****
+>        |                       *******                            ******
+>        |                             ******************************
+> -36.142|                                           *
+          ------------------------------------------------------------------------------------------
+          -35                                         1.6                                         38
+```
+
+**Available opts**
+
+- `PL_COMPLEX`      : Draws the complex plan instead of the real plan.
+- `PL_MANDELBROT`   : Draws the mandelbrot.
+- `PL_JULIA`        : Draws a julia set.
+- `PL_BURNING_SHIP` : Draws the burning ship.
+- `PL_ZOOM_IN`      : Zoom-ins for fractals.
+
+When drawing fractals, arguments are different: `plot(z_name, zoom, iterations, threshold, y, opts)`.
+
+Furthermore, the variable `C` can be used to to draw the burning ship or the mandelbrot set.
+This variable is updated for each pixel of the screen when rendering these fractals.
+Otherwise it has a value of 0.
+
+```
+calc> y::func(z*z+C)
+> ((z)*(z))+(C)
+```
+![Mandelbrot around -0.7269 + 0.1889i, zoomed 0.0001](./mandelbrot_spiral.png)

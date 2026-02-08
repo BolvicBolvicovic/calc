@@ -3,6 +3,8 @@
 A calculator for my journey as an embedded system engineer.
 Manipulate physics units and orders of magnetude with ease.
 
+![Julia set with c = -0.8i](./mkdocs/docs/julia_set_c-0.8i.png)
+
 ## Installation
 
 This is very straight forward. Clone the repository and run make.

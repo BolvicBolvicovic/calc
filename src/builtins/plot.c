@@ -3,6 +3,8 @@
 #include <parser.h>
 #include <math.h>
 
+extern s32	interrupted;
+
 static dots_t*
 plot_get_dots_fract
 (
@@ -66,7 +68,7 @@ plot_get_dots_fract
 					: fabs(re) + fabs(im) * I;
 
 			return_value_t*	ret;
-			f64		cnt = 0.0;
+			u32		cnt = 0;
 			// TODO: thread this.
 			do
 			{
@@ -83,7 +85,7 @@ plot_get_dots_fract
 						? fabs(creal(ret->c)) + fabs(cimag(ret->c)) * I
 						: ret->c;
 
-				cnt+=1;
+				cnt++;
 			} while (cabs(ret->c) < threshold && cnt < range);
 
 			dots->x[idx] = re;
@@ -201,34 +203,12 @@ plot_get_buffer
 	f64		x_start, f64 x_end
 )
 {
+	(void)opts;
 	f64	x_range =  x_end - x_start;
-	char	y_max_str[32];
-	char	y_min_str[32];
-
-	sprintf(y_max_str, "%.5g", dots->y_max);
-	sprintf(y_min_str, "%.5g", dots->y_min);
-
-	u64	y_label_width = strlen(y_max_str);
-
-	if (strlen(y_min_str) > y_label_width)
-		y_label_width = strlen(y_min_str);
-
-	// Note: "> " prefix and "|" suffix
-	y_label_width += 3;
-	
-	u64	y_label_spacing	= 2;
-	u64	num_y_labels	= PLOT_ROWS / y_label_spacing;
-
-	if (num_y_labels > 10) num_y_labels = 10;
-	if (num_y_labels < 2) num_y_labels = 2;
-	
-	f64		y_range	= dots->y_max - dots->y_min;
-	// Note: +2 for X-axis PLOT_ROWS
-	u64		rbufsize= (PLOT_COLS + 1) * (PLOT_ROWS + 2) + 1;
-	char*		rbuffer	= ARENA_PUSH_ARRAY(arena, char, rbufsize);
-	char		brush	= opts & PLOT_LINE ? '_'
-				: opts & PLOT_TRAIT? '|'
-				: '*';
+	f64	y_range	= dots->y_max - dots->y_min;
+	u64	rbufsize= (PLOT_COLS + 1) * (PLOT_ROWS + 2) + 1;
+	char*	rbuffer	= ARENA_PUSH_ARRAY(arena, char, rbufsize);
+	char	brush	= '*';
 	
 	memset(rbuffer, ' ', rbufsize);
 	
@@ -237,32 +217,17 @@ plot_get_buffer
 	
 	rbuffer[rbufsize - 1] = '\0';
 	
-	for (u64 label_idx = 0; label_idx < num_y_labels; label_idx++)
-	{
-		f64	y_value	= dots->y_max - (y_range * label_idx) / (num_y_labels - 1);
-		u64	row	= (label_idx * (PLOT_ROWS - 1)) / (num_y_labels - 1);
-		char	label[64];
-	
-		sprintf(label, "> %*.5g|", (s32)(y_label_width - 4), y_value);
-
-		u64	offset		= row * (PLOT_COLS + 1);
-		u64	label_len	= strlen(label);
-
-		if (label_len > y_label_width)
-			label_len = y_label_width;
-
-		memcpy(rbuffer + offset, label, label_len);
-	}
-	
 	for (u64 row = 0; row < PLOT_ROWS; row++)
 	{
 		u64	offset = row * (PLOT_COLS + 1);
+		char	label[64];
 
-		if (rbuffer[offset] != '>')
-		{
-			memcpy(rbuffer + offset, ">        |", 
-			       y_label_width < 10 ? y_label_width : 10);
-		}
+		if (row & 1)
+			sprintf(label, ">%*s|", 8, "");
+		else
+			sprintf(label, "> %-7.3g|", dots->y_max - (y_range*row/2) / (PLOT_ROWS/2-1));
+
+		memcpy(rbuffer + offset, label, strlen(label));
 	}
 	
 	for (u64 i = 0; i < range; i++)
@@ -272,7 +237,6 @@ plot_get_buffer
 		if (y_range > 0.0)
 			row = (u64)((dots->y_max - dots->y[i]) / y_range * (PLOT_ROWS - 1));
 		else
-			// Center if all values are the same
 			row = PLOT_ROWS / 2;
 		
 		u64 col = PLOT_PADDING_X + (u64)((dots->x[i] - x_start)
@@ -298,24 +262,17 @@ plot_get_buffer
 
 	sprintf(x_label_start, "%.2g", x_start);
 	memcpy(rbuffer + x_label_offset + PLOT_PADDING_X, x_label_start, strlen(x_label_start));
+
 	sprintf(x_label_end, "%.2g", x_end);
-
 	u64	end_pos = PLOT_COLS - strlen(x_label_end);
-
-	if (end_pos > PLOT_PADDING_X)
-		memcpy(rbuffer + x_label_offset + end_pos, x_label_end, strlen(x_label_end));
+	memcpy(rbuffer + x_label_offset + end_pos, x_label_end, strlen(x_label_end));
 	
-	if (PLOT_COLS > PLOT_PADDING_X + 40)
-	{
-		f64	x_mid = (x_start + x_end) / 2.0;
-		char	x_label_mid[32];
+	f64	x_mid = (x_start + x_end) / 2.0;
+	char	x_label_mid[32];
 
-		sprintf(x_label_mid, "%.2g", x_mid);
-
-		u64	mid_pos = PLOT_PADDING_X + (PLOT_COLS - PLOT_PADDING_X) / 2 - strlen(x_label_mid) / 2;
-
-		memcpy(rbuffer + x_label_offset + mid_pos, x_label_mid, strlen(x_label_mid));
-	}	
+	sprintf(x_label_mid, "%.2g", x_mid);
+	u64	mid_pos = PLOT_PADDING_X + (PLOT_COLS - PLOT_PADDING_X) / 2 - strlen(x_label_mid) / 2;
+	memcpy(rbuffer + x_label_offset + mid_pos, x_label_mid, strlen(x_label_mid));
 
 	return rbuffer;
 }
@@ -387,7 +344,7 @@ plot_get_buffer_fract
 (arena_t* arena, dots_t* dots)
 {
 	f64	z_range = dots->z_max - dots->z_min;
-	printf("> z_range: %g\n", z_range);
+	printf("> range :: %g\n", z_range);
 	u64	base_size = (PLOT_COLS + 1) * (PLOT_ROWS + 2) + 1;
 	u64	rbufsize = base_size + (PLOT_ROWS * PLOT_COLS * 30);  // Extra space for ANSI codes
 	char*	rbuffer	= ARENA_PUSH_ARRAY(arena, char, rbufsize);
@@ -413,26 +370,16 @@ plot_get_buffer_fract
 	{
 		// Add Y-axis label
 		if (row == 0)
-		{
-			write_pos += sprintf(rbuffer + write_pos, "> %*.2g|",
-			                     (s32)(y_label_width - 4), dots->y_max);
-		}
+			write_pos += sprintf(rbuffer + write_pos, "> %-8.8g|", dots->y_max);
 		else if (row == PLOT_ROWS / 2)
 		{
 			f64 y_mid = (dots->y_max + dots->y_min) / 2.0;
-			write_pos += sprintf(rbuffer + write_pos, "> %*.2g|",
-			                     (s32)(y_label_width - 4), y_mid);
+			write_pos += sprintf(rbuffer + write_pos, "> %-8.8g|", y_mid);
 		}
 		else if (row == PLOT_ROWS - 1)
-		{
-			write_pos += sprintf(rbuffer + write_pos, "> %*.2g|",
-			                     (s32)(y_label_width - 4), dots->y_min);
-		}
+			write_pos += sprintf(rbuffer + write_pos, "> %-8.8g|", dots->y_min);
 		else
-		{
-			write_pos += sprintf(rbuffer + write_pos, ">%*s|",
-			                     (s32)(y_label_width - 3), "");
-		}
+			write_pos += sprintf(rbuffer + write_pos, ">%-9.9s|", "");
 
 		// Plot the row with colors
 		if (row < PLOT_ROWS - PLOT_PADDING_Y)
@@ -465,7 +412,7 @@ plot_get_buffer_fract
 	}
 
 	// Add X-axis
-	write_pos += sprintf(rbuffer + write_pos, "%*s", (s32)y_label_width, "");
+	write_pos += sprintf(rbuffer + write_pos, "%*s", 11, "");
 	for (u64 col = 0; col < PLOT_COLS - PLOT_PADDING_X; col++)
 		rbuffer[write_pos++] = '-';
 	rbuffer[write_pos++] = '\n';
@@ -477,7 +424,7 @@ plot_get_buffer_fract
 	sprintf(x_label_start, "%.2g", dots->x_min);
 	sprintf(x_label_end, "%.2g", dots->x_max);
 
-	write_pos += sprintf(rbuffer + write_pos, "%*s", (s32)y_label_width, "");
+	write_pos += sprintf(rbuffer + write_pos, "%*s", 11, "");
 	write_pos += sprintf(rbuffer + write_pos, "%s", x_label_start);
 
 	u64	available_space =
@@ -539,8 +486,11 @@ plot
 		zoom_center_im = -0.035;
 	}
 
-	while (zoom > EPS)
+	printf("\033[2J\033[H\033[?25l");
+
+	do
 	{
+		printf("\033[H");
 		arena_temp_t	atmp = arena_temp_begin(param->arena_tmp);
 
 		if (opts & (PLOT_JULIA | PLOT_MANDELBROT | PLOT_BURNING_SHIP))
@@ -551,10 +501,14 @@ plot
 					zoom, zoom_center_re, zoom_center_im, x_end, x_inc, opts);
 
 			if (dots->err)
+			{
+				printf("\033[?25h");
 				return dots->err_code;
+			}
 
 			range	= (PLOT_ROWS - PLOT_PADDING_Y) * (PLOT_COLS - PLOT_PADDING_X);
 			rbuffer	= plot_get_buffer_fract(param->arena_tmp, dots);
+			printf("> zoom  :: %g\n", zoom);
 		}
 		else
 		{
@@ -562,7 +516,10 @@ plot
 			dots	= plot_get_dots_normal(param, x_name, x_start, x_inc, y, range, opts);
 
 			if (dots->err)
+			{
+				printf("\033[?25h");
 				return dots->err_code;
+			}
 
 			x_start	= opts & PLOT_COMPLEX ? dots->x_min : x_start;
 			x_end	= opts & PLOT_COMPLEX ? dots->x_max : x_end;
@@ -575,17 +532,16 @@ plot
 
 		parser_expr_to_str(y, expr, &idx);
 		expr[idx] = 0;
-		printf("> zoom :: %g\n", zoom);
-		printf("> for y :: %s\n", expr);
-		printf("%s\n", rbuffer);
+		printf("> for y :: %s\n%s\n", expr, rbuffer);
 		
 		fflush(stdout);
 
 		arena_temp_end(atmp);
 		zoom -= zoom_in;
 		zoom_in = pow(10.0, floor(log10(zoom))-1);
-	}
+	} while (!interrupted && zoom > EPS);
 
+	printf("\033[?25h");
 	return -1;
 }
 
