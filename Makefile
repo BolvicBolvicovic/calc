@@ -9,7 +9,7 @@ BFLAGS	= -O3 -Wno-override-init -march=native -fno-pie -no-pie
 LFLAGS	= -lreadline -lm
 INC	= -Iinclude
 
-SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c errors.c $(addprefix builtins/, polynomials.c roots.c trigo.c electricity.c))
+SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c errors.c $(addprefix builtins/, polynomials.c roots.c trigo.c electricity.c plot.c))
 
 all: run
 
@@ -39,7 +39,7 @@ tests: clean $(TESTER)
 	./$(TESTER)
 
 bench: clean $(BENCH)
-	./$(BENCH)
+	perf stat ./$(BENCH) > /dev/null
 
 serve_docs:
 	cd mkdocs && mkdocs serve

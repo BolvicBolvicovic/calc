@@ -85,6 +85,7 @@ struct evaluate_param_t
 	arena_t*	arena_glb;
 	variables_map*	vmap_tmp;
 	variables_map*	vmap_glb;
+	variables_map*	vmap_const;
 	string_map*	smap;
 };
 
@@ -92,6 +93,8 @@ f64		return_value_as_float(return_value_t* v);
 void		return_value_convert_oom(return_value_t* v, order_of_magnetude_t oom);
 return_value_t*	evaluate(ast_node_t* expr, evaluate_param_t*);
 void		evaluator_print_res(arena_t*, return_value_t* res);
+void		evaluator_init_const_map(variables_map* vmap);
+void		evaluator_init_smap(string_map* smap);
 
 #ifdef TESTER
 

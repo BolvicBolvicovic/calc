@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <builtins.h>
+#include <plot.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -69,9 +70,142 @@ evaluator_hash(token_t* t)
 	return hash;
 }
 
+void
+evaluator_init_smap(string_map* smap)
+{
+#define SMAP_STR_K_STR_V(smap, name, key, val)\
+static token_t	name##_key = {.start = (key), .length = sizeof(key)-1};\
+static char*	name##_val = val;\
+string_map_put(smap, &name##_key, name##_val)
+
+	SMAP_STR_K_STR_V(smap, ops, "operations",
+		"> Operations Helper\n"
+		"> Math operations available: +, -, /, *, ^\n"
+		"> Example:\n"
+		"calc> -5 + 5 * 8 / (5 ^ 6)\n"
+		"> -5\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+	
+	SMAP_STR_K_STR_V(smap, lists, "lists",
+		"> Lists Helper\n"
+		"> A list is defined with the list operator ','.\n"
+		"> An element of a list bound to a variable can be accessed with a 0-based index.\n"
+		"> Example:\n"
+		"calc> my_list :: (12, 5, 6)\n"
+		"> (12, 5, 6)\n"
+		"calc> my_list(0)\n"
+		"> 12\n"
+		"calc> my_list(10)\n"
+		"> Error at line 1 here ->10): Out of bound\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+
+	SMAP_STR_K_STR_V(smap, vars, "variables",
+		"> Variables Helper\n"
+		"> A value can be bound to a variable either globally with the operator '::'\n"
+		"> or locally with the operator ':'.\n"
+		"calc> x :: milli(watt(5))\n"
+		"> 5 milli watt\n"
+		"calc> (c : 5) + c\n"
+		"> 10\n"
+		"calc> c * c\n"
+		"> Error at line 1 here ->* c: Operation with unbound variable not allowed\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+
+	SMAP_STR_K_STR_V(smap, fns, "functions",
+		"> Functions Helper\n"
+		"> A function is declared with the built-in `func`.\n"
+		"> The expression in its parenthesis is saved and can be used later.\n"
+		"calc> circle :: func(2 * PI * _R)\n"
+		"> ((2)*(PI))*(_R)\n"
+		"calc> circle(_R:5)\n"
+		"> 31.4159\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+
+	SMAP_STR_K_STR_V(smap, b_ins, "builtins",
+		"> Built-ins Helper\n"
+		"> Math built-ins:\n"
+		">	- Polyomials: polynom_one, polynom_two, polynom_three, polynom_four\n"
+		">	- Trigonometry: cos, arccos, tan, arctan, sin, arcsin\n"
+		">	- Roots: sqrt, cbrt\n"
+		">	- Constants: PI, E, I\n"
+		"> Physics built-ins:\n"
+		">	- Electricity:\n"
+		">		- current(a,b): 'a' != 'b' && 'ohm', 'ampere', 'watt' or 'volt'\n"
+		">		- res_parallel(r1, ..., rn): 'rn' always considered as 'ohm'\n"
+		">		- volt_divider(v, r1, ..., rn), 'v' as 'volt' and 'rn' as 'ohm'\n"
+		">		- amp_divider(a, r1, ..., rn), 'a' as 'ampere' and 'rn' as 'ohm'\n"
+		"> Other built-ins:\n"
+		">	- exit: quits the calculator\n"
+		">	- clear: clears the terminal\n"
+		">	- new_session: clears the global variables hashmap\n"
+		">	- unbind(var): clears 'var' from the global variables hashmap\n"
+		">	- plot(x_name, x_start, x_end, x_inc, func, opts): plots a function\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+
+	SMAP_STR_K_STR_V(smap, ooms, "orders_of_magnitude",
+		"> Orders of Magnetude Helper\n"
+		"> Orders of magnitude (OOMs) are subtypes that can affect a variable's value.\n"
+		"> They are also metadata about a variable.\n"
+		"> Available built-in magnitudes:\n"
+		">	- base_magnitude\n"
+		">	- deci\n"
+		">	- centi\n"
+		">	- milli\n"
+		">	- micro\n"
+		">	- nano\n"
+		"calc> milli(ampere(5)) * milli(volt(5))\n"
+		"> 0.025 milli watt\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+
+	SMAP_STR_K_STR_V(smap, units, "physics_units",
+		"> Physics Unit Helper\n"
+		"> Physics units are subtypes that cannot affect a variable's value.\n"
+		"> They are metadata about a variable.\n"
+		"> However, they can interact with each other, reducing their expression to the most consise form.\n"
+		"> Example: ampere * volt = watt\n"
+		"> Available built-in units:\n"
+		">	- volt\n"
+		">	- ampere\n"
+		">	- ohm\n"
+		">	- watt\n"
+		">	- seconds\n"
+		">	- joule\n"
+		"calc> ampere(5) * volt(5)\n"
+		"> 25 watt\n"
+		"> More information can be found in ./mkdocs/docs/documentation.md\n");
+}
+
+void
+evaluator_init_const_map(variables_map* vmap)
+{
+#define VMAP_STR_K_TYPE_V(vmap, name, str, val, Type)\
+static token_t		name##_token = {.start = (str), .length = sizeof(str)-1};\
+static return_value_t	name##_val = {.oom = OOM_NONE, .type = Type, .c = val};\
+variables_map_put(vmap, &name##_token, &name##_val)
+
+#define VMAP_STR_K_FLOAT_V(vmap, name, str, val)\
+	VMAP_STR_K_TYPE_V(vmap, name, str, val, RET_FLOAT)
+
+#define VMAP_STR_K_COMPLEX_V(vmap, name, str, val)\
+	VMAP_STR_K_TYPE_V(vmap, name, str, val, RET_COMPLEX)
+
+	VMAP_STR_K_FLOAT_V(vmap, pi, "PI", M_PI);
+	VMAP_STR_K_FLOAT_V(vmap, e, "E", M_E);
+	VMAP_STR_K_COMPLEX_V(vmap, i, "I", I);
+	VMAP_STR_K_COMPLEX_V(vmap, c, "C", 0);
+	VMAP_STR_K_FLOAT_V(vmap, plot_complex, "PL_COMPLEX", PLOT_COMPLEX);
+	VMAP_STR_K_FLOAT_V(vmap, plot_surf, "PL_SURF", PLOT_SURF);
+	VMAP_STR_K_FLOAT_V(vmap, plot_julia, "PL_JULIA", PLOT_JULIA);
+	VMAP_STR_K_FLOAT_V(vmap, plot_mandelbrot, "PL_MANDELBROT", PLOT_MANDELBROT);
+	VMAP_STR_K_FLOAT_V(vmap, plot_burning_ship, "PL_BURNING_SHIP", PLOT_BURNING_SHIP);
+	VMAP_STR_K_FLOAT_V(vmap, plot_zoom_in, "PL_ZOOM_IN", PLOT_ZOOM_IN);
+}
+
 static inline void
 evaluator_print_res_val(arena_t* arena, return_value_t* res)
 {
+	char*	buf = ARENA_PUSH_ARRAY(arena, char, 128);
+
 	switch (res->type)
 	{
 	case RET_FLOAT:
@@ -82,16 +216,19 @@ evaluator_print_res_val(arena_t* arena, return_value_t* res)
 		break;
 	case RET_FUNC:
 		// TODO: Find a way to print expression properly.
-		char*	buf = ARENA_PUSH_ARRAY(arena, char, 128);
 		s32	idx = 0;
 		parser_expr_to_str(res->func, buf, &idx);
 		buf[idx] = 0;
 		printf("%s", buf);
 		return;
+	case RET_BINDABLE:
+		token_t*tok = &res->func->token;
+		memcpy(buf, tok->start, tok->length);
+		buf[tok->length] = 0;
+		printf("%s", buf);
+		return;
 	case RET_ERR:
 		error_print(res->token, res->err_code);
-		return;
-	default:
 		return;
 	}
 	
@@ -423,6 +560,9 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 		return ret;
 	}
 
+	if (node->cached)
+		return node->cached;
+
 	ret->type	= RET_FLOAT;
 	ret->token	= &node->token;
 
@@ -493,6 +633,19 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 					trigo_tan(ret);
 					return ret;
 				}
+				else if (memcmp("abs", token_buf, 3) == 0)
+				{
+					if (ret->type == RET_FLOAT)
+						ret->f = fabs(ret->f);
+					else if (ret->type == RET_COMPLEX)
+						ret->c = cabs(ret->c);
+					else
+					{
+						ret->type	= RET_ERR;
+						ret->err_code	= ERR_WRONG_ARG;
+					}
+					return ret;
+				}
 				break;
 			case 4:
 				if (memcmp("volt", token_buf, 4) == 0)
@@ -523,6 +676,48 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 				else if (memcmp("cbrt", token_buf, 4) == 0)
 				{
 					roots_cbrt(ret);
+					return ret;
+				}
+				else if (memcmp("plot", token_buf, 4) == 0)
+				{
+					if (ret->type == RET_ERR)
+						return ret;
+
+					return_value_t*	val_xe	= ret->next && ret->next->next ? ret->next->next : 0;
+					return_value_t*	val_xi	= val_xe ? val_xe->next : 0; 
+					return_value_t* val_y	= val_xi ? val_xi->next : 0;
+					token_t*	x_name	= &ret->func->token;
+					f64		x_start	= ret->next ? ret->next->f : 0;
+					f64		x_end	= val_xe ? val_xe->f : 0;
+					f64		x_inc	= val_xi ? val_xi->f : 0;
+					ast_node_t*	y	= val_y ? val_y->func : 0;
+					return_value_t*	opt	= val_y ? val_y->next : 0;
+					u64		opts	= 0;
+					// Potential bug here with x_name
+					//lexer_print_token(x_name);
+					
+					if (!val_y || val_y->type != RET_FUNC)
+					{
+						ret->next = 0;
+						ret->type = RET_ERR;
+						ret->err_code = ERR_WRONG_ARG;
+						return ret;
+					}
+
+					while (opt)
+					{
+						opts	|= (u64)opt->f;
+						opt	= opt->next;
+					}
+					
+					s32	err = plot(param, x_name, x_start, x_end, x_inc, y, opts);
+					
+					if (err == -1)
+						return 0;
+					
+					ret->type	= RET_ERR;
+					ret->err_code	= err;
+					ret->next	= 0;
 					return ret;
 				}
 				break;
@@ -633,6 +828,7 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			default:
 			} // switch (node->token.length)
 
+			// List indexing
 			return_value_t**	var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
@@ -686,28 +882,6 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			// Constants
 			switch (token_len)
 			{
-			case 1:
-				if (*token_buf == 'E')
-				{
-					ret->type = RET_FLOAT;
-					ret->f = M_E;
-					return ret;
-				}
-				else if (*token_buf == 'I')
-				{
-					ret->type = RET_COMPLEX;
-					ret->c = I;
-					return ret;
-				}
-				break;
-			case 2:
-				if (memcmp("PI", token_buf, 2) == 0)
-				{
-					ret->type = RET_FLOAT;
-					ret->f = M_PI;
-					return ret;
-				}
-				break;
 			case 4:
 				if (memcmp("exit", token_buf, 4) == 0)
 					exit(0);
@@ -747,15 +921,24 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			default:
 			}
 			// Variables
-			return_value_t**	var = variables_map_get(param->vmap_glb, token);
+			return_value_t**	var = variables_map_get(param->vmap_const, token);
+				
+			if (!var || !*var)
+				var = variables_map_get(param->vmap_glb, token);
 			
 			if (!var || !*var)
 				var = variables_map_get(param->vmap_tmp, token);
 				
 			if (var && *var)
+			{
+				node->cached = *var;
 				memcpy(ret, *var, sizeof(return_value_t));
+			}
 			else
+			{
 				ret->type = RET_BINDABLE;
+				ret->func = node;
+			}
 		}
 
 		break;
@@ -779,6 +962,12 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 				return ret;
 			}
 		}
+		else
+		{
+			node->cached = ARENA_PUSH_STRUCT(param->arena_glb, return_value_t);
+			evaluator_memcpy_value(param->arena_glb, node->cached, ret);
+		}
+
 		break;
 	case EXPR_UOP:
 		switch (token->symbol)
@@ -786,10 +975,15 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 		case TK_SUB:
 			ret = evaluate(node->left, param);
 
-			if (ret->type == RET_FLOAT)
-				ret->f = -ret->f;
-			else if (ret->type == RET_COMPLEX)
-				ret->c = -ret->c;
+			if (ret->type == RET_ERR)
+				return ret;
+
+			ret->c = -ret->c;
+			if (node->left->cached)
+			{
+				node->cached	= node->left->cached;
+				node->cached->c	= -node->cached->c;
+			}
 			break;
 		default:
 			ret->type	= RET_ERR;
@@ -815,7 +1009,7 @@ evaluate(ast_node_t* node, evaluate_param_t* param)
 			return	l->type == RET_ERR ? l : r;
 		}
 
-		if (token->symbol != TK_BIND && token->symbol != TK_TMP_BIND
+		if (token->symbol != TK_BIND && token->symbol != TK_TMP_BIND && token->symbol != TK_LIST
 			&& (l->type == RET_BINDABLE  || r->type == RET_BINDABLE))
 		{
 			ret->type	= RET_ERR;
@@ -1509,6 +1703,7 @@ test_evaluate_binding(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
 
@@ -1593,6 +1788,7 @@ test_evaluate_list(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
 	
@@ -1701,8 +1897,11 @@ test_evaluate_complex(void)
 		.arena_glb	= arena,
 		.vmap_tmp	= vmap,
 		.vmap_glb	= vmap,
+		.vmap_const	= vmap,
 		.smap		= 0
 	};
+
+	evaluator_init_const_map(vmap);
 	
 	char*	test1	= "5 + 5 * I";
 
@@ -1734,8 +1933,11 @@ test_evaluate_func(void)
 		.arena_glb	= arena2,
 		.vmap_tmp	= vmap1,
 		.vmap_glb	= vmap2,
+		.vmap_const	= vmap2,
 		.smap		= 0
 	};
+	
+	evaluator_init_const_map(vmap2);
 	
 	char*	e	= "circle :: func(2*PI*_R)";
 	char*	test1	= ARENA_PUSH_ARRAY(arena1, char, 23);
@@ -1764,13 +1966,36 @@ test_evaluate_func(void)
 	assert((res->f - (2*M_PI*5)) < EPS);
 	assert(res->unit == U_NONE);
 	assert(res->oom == OOM_NONE);
+}
 
+static void
+test_evaluator_init_const_map(void)
+{
+	arena_t*	arena	= ARENA_ALLOC();
+	variables_map*	vmap	= variables_map_new(arena, 100);
+
+	evaluator_init_const_map(vmap);
+	
+	return_value_t** pi	= variables_map_get(vmap, &(token_t){.start = "PI", .length = 2});
+	return_value_t** e	= variables_map_get(vmap, &(token_t){.start = "E", .length = 1});
+	return_value_t** i	= variables_map_get(vmap, &(token_t){.start = "I", .length = 1});
+
+	assert(pi && *pi);
+	assert(e && *e);
+	assert(i && *i);
+
+	assert((*pi)->f - M_PI < EPS);
+	assert((*e)->f - M_E < EPS);
+	assert(cimag((*i)->c) - 1 < EPS);
+
+	arena_release(arena);
 }
 
 void
 test_evaluate(void)
 {
 	test_evaluator_atof();
+	test_evaluator_init_const_map();
 	test_evaluate_base();
 	test_evaluate_units_oom();
 	test_evaluate_binding();
