@@ -358,7 +358,7 @@ plot_get_buffer_fract
 	char	y_max_str[32];
 	char	y_min_str[32];
 
-	printf("> range :: %g\n", z_range);
+	printf("> range :: %g         \n", z_range);
 	memset(rbuffer, ' ', PLOT_FRAC_BUF_SIZE);
 	sprintf(y_max_str, "%.2g", dots->y_max);
 	sprintf(y_min_str, "%.2g", dots->y_min);
@@ -501,7 +501,7 @@ plot
 
 			range	= (PLOT_ROWS - PLOT_PADDING_Y) * (PLOT_COLS - PLOT_PADDING_X);
 			rbuffer	= plot_get_buffer_fract(param->arena_tmp, dots);
-			printf("> zoom  :: %g\n", zoom);
+			printf("> zoom  :: %g       \n", zoom);
 		}
 		else
 		{

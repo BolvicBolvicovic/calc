@@ -6,7 +6,7 @@ BENCH	= benchmark
 CC	= gcc
 CFLAGS	= -Werror -Wextra -Wall -O0 -g -Wno-override-init -march=native
 BFLAGS	= -O3 -Wno-override-init -march=native -fno-pie -no-pie
-LFLAGS	= -lreadline -lm
+LFLAGS	= -lreadline -lm -lpthread
 INC	= -Iinclude
 
 SRCS	= $(addprefix src/, arena.c lexer.c parser.c evaluator.c swissmap.c errors.c $(addprefix builtins/, polynomials.c roots.c trigo.c electricity.c plot.c))

@@ -18,7 +18,7 @@ main()
 {
 	return_value_t*	res		= 0;
 	ast_node_t*	tree		= 0;
-	arena_t*	arena_tmp	= ARENA_ALLOC();
+	arena_t*	arena_tmp	= ARENA_ALLOC(.reserve_size=MB(128), .commit_size=MB(64));
 	arena_t*	arena_glb	= ARENA_ALLOC();
 	arena_t*	arena_const	= ARENA_ALLOC();
 	variables_map*	vmap_tmp	= variables_map_new(arena_tmp, 100);
