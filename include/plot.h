@@ -5,10 +5,11 @@
 #include <evaluator.h>
 #include <bits.h>
 
-#define PLOT_PADDING_X	10
-#define PLOT_PADDING_Y	4
-#define PLOT_ROWS	40
-#define PLOT_COLS	100
+#define PLOT_PADDING_X		10
+#define PLOT_PADDING_Y		4
+#define PLOT_ROWS		40
+#define PLOT_COLS		100
+#define PLOT_FRAC_BUF_SIZE	(PLOT_COLS + 1) * (PLOT_ROWS + 2) + 1 + PLOT_ROWS * PLOT_COLS * 30
 
 typedef enum plot_opt_t	plot_opt_t;
 enum plot_opt_t
@@ -49,6 +50,8 @@ s32	plot(evaluate_param_t* 	param,
 
 #ifdef TESTER
 
+void	test_plot_get_dots_fract(void);
+void	test_plot_get_dots(void);
 
 
 #endif // TESTER

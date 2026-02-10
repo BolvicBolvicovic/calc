@@ -2,12 +2,16 @@
 #include <evaluator.h>
 #include <swissmap.h>
 #include <builtins.h>
+#include <signal.h>
 
-void perf_begin(void) __attribute__((noinline));
-void perf_end(void)   __attribute__((noinline));
+volatile s32	interrupted = 0;
 
-void perf_begin(void) {}
-void perf_end(void)   {}
+static void
+on_ctrl_c(s32 sig)
+{
+	(void)sig;
+	interrupted = 1;
+}
 
 int
 main()
@@ -33,6 +37,12 @@ main()
 	};
 	evaluator_init_const_map(vmap_const);
 
+	struct sigaction	sa = {0};
+
+	sa.sa_handler	= on_ctrl_c;
+	sa.sa_flags	= SA_RESTART;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGINT, &sa, NULL);
 //	u64		i = 0x1000000;
 	u64		ix= 2;//0;
 	char*	s[4] =
@@ -50,7 +60,6 @@ main()
 		14,
 		51,
 	};
-	perf_begin();
 	//while (--i)
 	while (ix < 4)
 	{
@@ -64,7 +73,6 @@ main()
 	//	ix = !ix;
 		ix++;
 	}
-	perf_end();
 
 	return 0;
 }
