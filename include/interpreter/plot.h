@@ -2,8 +2,8 @@
 #define PLOT_H
 
 #include <c_types.h>
-#include <evaluator.h>
 #include <bits.h>
+#include <interpreter/evaluator.h>
 
 #define PLOT_PADDING_X		10
 #define PLOT_PADDING_Y		4

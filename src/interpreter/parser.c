@@ -1,8 +1,8 @@
-#include <parser.h>
 #include <arena.h>
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <interpreter/parser.h>
 
 static inline void 
 ast_node_init(ast_node_t* node, expr_t type, token_t* token)

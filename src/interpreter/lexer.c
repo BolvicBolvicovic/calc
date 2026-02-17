@@ -1,9 +1,9 @@
-#include <lexer.h>
 #include <arena.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <interpreter/lexer.h>
 
 static __always_inline u32
 is_space(u8 c)

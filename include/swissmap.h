@@ -77,6 +77,11 @@ u16	swiss_match_h2(const u8* ctrl, u8 h2, u64 offset);
  * */
 u64	swiss_djb2_hash(char* str);
 
+/* Name: swiss_splitmix64
+ * Description: default hash for unsigned integers.
+ * */
+u64	swiss_splitmix64(u64 x);
+
 /* Name: swiss_strcmp_wrapper
  * Description: default key comparison function when K_t is char*.
  * */
@@ -137,8 +142,50 @@ name##_get(name* map, K_t key)					\
 			m &= m - 1;				\
 		}						\
 								\
-		if (swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask))\
-		if (swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask))\
+		if (swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask)\
+		|| swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask))\
+			return 0;				\
+								\
+		group = (group + SWISSMAP_GROUP_SIZE) & mask;	\
+	}							\
+	while (group != start);					\
+								\
+	return 0;						\
+}
+
+/* Name: SWISSMAP_DEFINE_HAS_KEY
+ * Description: macro that defines the has_key function for a user defined swissmap.
+ * Requires a hash function and a comparison function.
+ * Checks each group starting by the one defined by h1 for a matching h2.
+ * If match, returns a pointer to the key else returns a null pointer.
+ * */
+#define SWISSMAP_DEFINE_HAS_KEY(name, K_t, hash_fn, eq_fn)	\
+K_t*								\
+name##_has_key(name* map, K_t key)				\
+{								\
+	u64	hash	= hash_fn(key);				\
+	u8	h2	= swiss_h2(hash);			\
+	u64	mask	= map->capacity - 1;			\
+	u64	group	= swiss_h1(hash, map->capacity);	\
+	u64	start	= group;				\
+								\
+	do							\
+	{							\
+		u16	m = swiss_match_h2(map->ctrl, h2, group & mask);\
+								\
+		while (m)					\
+		{						\
+			s32	i	= __builtin_ctz(m);	\
+			u64	idx	= (group + i) & mask;	\
+								\
+			if (eq_fn(map->keys[idx], key))		\
+				return &map->keys[idx];		\
+								\
+			m &= m - 1;				\
+		}						\
+								\
+		if (swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask)\
+		|| swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask))\
 			return 0;				\
 								\
 		group = (group + SWISSMAP_GROUP_SIZE) & mask;	\
@@ -185,14 +232,12 @@ name##_put(name* map, K_t key, V_t value)			\
 			m &= m - 1;				\
 		}						\
 								\
-		u16	empty = swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask);\
+		u16	empty	= swiss_match_h2(map->ctrl, SWISS_EMPTY, group & mask);\
+		u16	deleted	= swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask);\
 								\
-		if (!empty)					\
-			empty = swiss_match_h2(map->ctrl, SWISS_DELETED, group & mask);\
-								\
-		if (empty)					\
+		if (empty || deleted)				\
 		{						\
-			s32	e	= __builtin_ctz(empty);	\
+			s32	e	= __builtin_ctz(empty ? empty : deleted);\
 			u64	idx	= (group + e) & mask;	\
 								\
 			map->ctrl[idx]	= h2;			\
@@ -257,6 +302,7 @@ name##_delete(name* map, K_t key)				\
 SWISSMAP_DEFINE_NEW(name, K_t, V_t)			\
 SWISSMAP_DEFINE_GET(name, K_t, V_t, hash_fn, eq_fn)	\
 SWISSMAP_DEFINE_PUT(name, K_t, V_t, hash_fn, eq_fn)	\
+SWISSMAP_DEFINE_HAS_KEY(name, K_t, hash_fn, eq_fn)	\
 SWISSMAP_DEFINE_DELETE(name, K_t, V_t, hash_fn, eq_fn)
 
 /* Name: SWISSMAP_DEFINE_FUNCTIONS_DEFAULT
@@ -273,6 +319,7 @@ SWISSMAP_DEFINE_FUNCTIONS(name, char*, V_t, swiss_djb2_hash, swiss_strcmp_wrappe
 name*	name##_new(arena_t* arena, u64 capacity);	\
 void	name##_put(name* map, K_t key, V_t value);	\
 V_t*	name##_get(name* map, K_t key);			\
+K_t*	name##_has_key(name* map, K_t key);		\
 void	name##_delete(name* map, K_t key);
 
 /* Name: SWISSMAP_DECLARE_DEFAULT

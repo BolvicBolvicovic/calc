@@ -1,7 +1,7 @@
 #ifndef BUILTINS_H
 #define BUILTINS_H
 
-#include <evaluator.h>
+#include <interpreter/evaluator.h>
 
 // MATH
 

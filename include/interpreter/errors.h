@@ -1,7 +1,7 @@
 #ifndef ERRORS_H
 #define ERRORS_H
 
-#include <lexer.h>
+#include <interpreter/lexer.h>
 
 typedef enum error_code_t error_code_t;
 enum error_code_t

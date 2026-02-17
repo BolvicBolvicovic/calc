@@ -1,12 +1,12 @@
 #ifndef EVALUATOR_H
 #define EVALUATOR_H
 
-#include <parser.h>
 #include <swissmap.h>
 #include <arena.h>
 #include <complex.h>
 #include <bits.h>
-#include <errors.h>
+#include <interpreter/parser.h>
+#include <interpreter/errors.h>
 
 #define EPS	1e-13
 

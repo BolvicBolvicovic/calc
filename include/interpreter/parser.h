@@ -2,9 +2,9 @@
 #define PARSER_H
 
 #include <c_types.h>
-#include <lexer.h>
 #include <arena.h>
-#include <errors.h>
+#include <interpreter/lexer.h>
+#include <interpreter/errors.h>
 
 struct return_value_t;
 

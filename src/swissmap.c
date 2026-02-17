@@ -1,5 +1,5 @@
 #include <swissmap.h>
-#include <compiler.h>
+#include <macros.h>
 
 __always_inline u64
 swiss_h1(u64 hash, u64 cap)
@@ -89,6 +89,16 @@ swiss_djb2_hash(char* str)
 		hash = ((hash << 5) + hash) + c;
 
 	return hash;
+}
+
+__always_inline u64
+swiss_splitmix64(u64 x)
+{
+	x += 0x9e3779b97f4a7c15ULL;
+	x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+	x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+
+	return x ^ (x >> 31);
 }
 
 /* Name: swiss_strcmp_wrapper

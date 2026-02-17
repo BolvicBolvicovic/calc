@@ -1,7 +1,8 @@
-#include <plot.h>
 #include <stdio.h>
-#include <parser.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
+#include <interpreter/plot.h>
+#include <interpreter/parser.h>
 
 extern s32	interrupted;
 

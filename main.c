@@ -1,15 +1,16 @@
 #include <c_types.h>
-#include <lexer.h>
-#include <parser.h>
-#include <evaluator.h>
+#include <assert.h>
+#include <signal.h>
 #include <arena.h>
 #include <stdio.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <stdlib.h>
 #include <macros.h>
-#include <signal.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
+
+#ifdef INTERPRETER_BUILD
+// TODO: move it upward when ready
 volatile s32	interrupted = 0;
 
 static void
@@ -18,6 +19,10 @@ on_ctrl_c(s32 sig)
 	(void)sig;
 	interrupted = 1;
 }
+
+#include <interpreter/lexer.h>
+#include <interpreter/parser.h>
+#include <interpreter/evaluator.h>
 
 s32
 main(void)
@@ -79,3 +84,84 @@ main(void)
 
 	return 0;
 }
+
+#else // INTERPRETER_BUILD
+
+#include <read_file.h>
+#include <vm/chunk.h>
+#include <vm/value.h>
+#include <vm/vm.h>
+#include <vm/compiler.h>
+
+s32
+main(s32 argc, char** argv)
+{
+	arena_t*	arena_tmp	= ARENA_ALLOC();
+	arena_t*	arena_const	= ARENA_ALLOC();
+	vm_t*		vm		= vm_new(arena_const);
+	compiler_t	compiler	=
+	{
+		.arena_const=arena_const,
+		.arena_tmp=arena_tmp,
+		.strings=vm->strings,
+		.constants=value_array_new(arena_const, 1000),
+	};
+
+	//struct sigaction	sa = {0};
+
+	//sa.sa_handler	= on_ctrl_c;
+	//sa.sa_flags	= SA_RESTART;
+	//sigemptyset(&sa.sa_mask);
+	//sigaction(SIGINT, &sa, NULL);
+
+	switch (argc)
+	{
+	case 1:
+		u32	l_size	= 0;
+
+		while ((compiler.src = readline(PROMPT)))
+		{
+			arena_temp_t	tmp = arena_temp_begin(arena_tmp);
+
+			if ((l_size = strlen(compiler.src)))
+				add_history(compiler.src);
+			else
+				continue;
+			
+			//interrupted = 0;
+
+			chunk_t*	bytes	= compiler_run(&compiler);
+			vm_result_t	result	= vm_run(vm, bytes);
+
+			if (result == VM_RES_COMPILE_ERR) exit(65);
+			if (result == VM_RES_RUNTIME_ERR)
+			{
+				chunk_dissassemble(bytes);
+				exit(70);
+			}
+
+			arena_temp_end(tmp);
+			free(compiler.src);
+		}
+
+		return 0;
+	case 2:
+		compiler.src = read_file(arena_tmp, argv[1]);
+
+		chunk_t*	bytes	= compiler_run(&compiler);
+		vm_result_t	result	= vm_run(vm, bytes);
+
+		if (result == VM_RES_COMPILE_ERR) exit(65);
+		if (result == VM_RES_RUNTIME_ERR) exit(70);
+
+		return 0;
+	default:
+		fprintf(stderr, "Usage: calc-vm [path]\n");
+		return 64;
+	}
+
+	return 0;
+}
+
+
+#endif // VM_BUILD 

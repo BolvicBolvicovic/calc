@@ -1,10 +1,10 @@
-#include <evaluator.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include <builtins.h>
-#include <plot.h>
+#include <interpreter/evaluator.h>
+#include <interpreter/builtins.h>
+#include <interpreter/plot.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>

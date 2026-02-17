@@ -1,7 +1,7 @@
-#include <builtins.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <errors.h>
+#include <interpreter/builtins.h>
+#include <interpreter/errors.h>
 
 void
 polynom_one(return_value_t* v)

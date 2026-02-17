@@ -1,5 +1,5 @@
-#include <errors.h>
 #include <stdio.h>
+#include <interpreter/errors.h>
 
 static const char*	err_tab[] =
 {
