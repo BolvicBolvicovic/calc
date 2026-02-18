@@ -122,6 +122,7 @@ main(s32 argc, char** argv)
 			else
 				continue;
 			
+			strcat(line, ";");
 			//interrupted = 0;
 
 			chunk_t*	bytes	= compiler_run(context, line);
@@ -134,6 +135,12 @@ main(s32 argc, char** argv)
 				exit(70);
 			}
 
+
+			printf("> \e[3m");
+			value_print(*vm->stack_top);
+			printf("\e[0m\n");
+
+			vm->stack_top = vm->stack;
 			arena_temp_end(tmp);
 			context_reset_line(context);
 			free(line);

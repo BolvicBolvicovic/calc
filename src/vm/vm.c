@@ -18,7 +18,7 @@ do								\
 #define VM_BOP(vm, op)									\
 do											\
 {											\
-	value_t	a = vm_pop(vm);								\
+	value_t	a = *vm_pop(vm);							\
 	value_t b = *((vm)->stack_top - 1);						\
 											\
 	if (a.type > VAL_STR || b.type > VAL_STR)					\
@@ -64,7 +64,7 @@ do											\
 #define VM_COMPARE(vm, op)								\
 do											\
 {											\
-	value_t	a = vm_pop(vm);								\
+	value_t	a = *vm_pop(vm);							\
 	value_t b = *((vm)->stack_top - 1);						\
 											\
 	if (a.type > VAL_NB || b.type > VAL_NB)						\
@@ -96,7 +96,7 @@ do											\
 #define VM_EQ(vm, op)										\
 do												\
 {												\
-	value_t	a = vm_pop(vm);									\
+	value_t	a = *vm_pop(vm);								\
 	value_t	b = *(vm->stack_top - 1);							\
 												\
 	if (a.type == VAL_ARR || b.type == VAL_ARR)						\
@@ -192,13 +192,14 @@ vm_push(vm_t* vm, value_t value)
 	vm->stack_top++;
 }
 
-static inline value_t
+static inline value_t*
 vm_pop(vm_t* vm)
 {
-	assert(vm->stack_top > vm->stack);
+	if (vm->stack_top <= vm->stack)
+		return 0;
 
 	vm->stack_top--;
-	return *vm->stack_top;
+	return vm->stack_top;
 }
 
 static inline void
@@ -252,14 +253,14 @@ vm_run(vm_t* vm, chunk_t* chunk)
 		} break;
 		case OP_DEFINE_GLOBAL:
 		{
-			value_t		val	= vm_pop(vm);
-			value_t		name	= vm_pop(vm);
+			value_t		val	= *vm_pop(vm);
+			value_t		name	= *vm_pop(vm);
 
 			value_map_put(globals, name, val);
 		} break;
 		case OP_GET_GLOBAL:
 		{
-			value_t		name	= vm_pop(vm);
+			value_t		name	= *vm_pop(vm);
 			value_t*	val	= value_map_get(globals, name);
 			
 			if (!val)
@@ -313,7 +314,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 		case OP_INF	: vm_push(vm, VAL_AS_NB(INFINITY)); break;
 		case OP_TRUE	: vm_push(vm, VAL_AS_BOOL(1)); break;
 		case OP_FALSE	: vm_push(vm, VAL_AS_BOOL(0)); break;
-		case OP_PRINT	: value_print(vm_pop(vm)); printf("\n"); break;
+		case OP_PRINT	: value_print(*vm_pop(vm)); printf("\n"); break;
 		case OP_POP	: vm_pop(vm); break;
 		case OP_RET	: return VM_RES_OK;
 		}
