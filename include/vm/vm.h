@@ -21,13 +21,11 @@ struct vm_t
 	u8*		ip;
 	value_t		stack[VM_STACK_SIZE];
 	value_t*	stack_top;
-	string_set*	strings;
-	value_map*	globals;
-	arena_t*	arena;
+	context_t*	context;
 };
 
 vm_result_t	vm_run(vm_t*, chunk_t*);
-vm_t*		vm_new(arena_t*);
+vm_t*		vm_new(context_t*);
 
 #ifdef TESTER
 

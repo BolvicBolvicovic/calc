@@ -4,6 +4,7 @@
 #include <c_types.h>
 #include <arena.h>
 #include <vm/value.h>
+#include <vm/context.h>
 
 #define CHUNK_LINE_NUMBER		0xffff0000
 #define CHUNK_LINE_COUNT		0x0000ffff
@@ -50,15 +51,14 @@ struct chunk_t
 	chunk_t*	prev;
 	chunk_t*	next;
 	u8*		code;
-	value_array_t*	constants;
-	string_set*	strings;
 	u32*		lines;
+	context_t*	context;
 };
 
-u8		chunk_read(chunk_t* chunk, u32 index);
-chunk_t*	chunk_new(arena_t*, u32 capacity);
+u8		chunk_read(chunk_t*, u32 index);
+chunk_t*	chunk_new(context_t*, u32 capacity);
 chunk_t*	chunk_write(arena_t*, chunk_t*, u8 byte, u32 line);
-chunk_t*	chunk_write_const(arena_t* arena, chunk_t* chunk, value_t constant, u32 line);
+chunk_t*	chunk_write_const(arena_t*, chunk_t*, value_t constant, u32 line);
 void		chunk_dissassemble(chunk_t*);
 
 #ifdef TESTER

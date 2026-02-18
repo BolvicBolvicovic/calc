@@ -3,6 +3,7 @@
 
 #include <vm/chunk.h>
 #include <vm/scanner.h>
+#include <vm/context.h>
 
 typedef struct parser_t parser_t;
 struct parser_t
@@ -13,8 +14,7 @@ struct parser_t
 	bool		error;
 	bool		panic;
 	chunk_t*	chunk;
-	arena_t*	arena_const;
-	arena_t*	arena_tmp;
+	context_t*	context;
 };
 
 typedef void(*parser_fn_t)(parser_t*);
@@ -43,16 +43,6 @@ struct parser_rules_t
 	precedence_t	precedence;
 };
 
-typedef struct compiler_t compiler_t;
-struct compiler_t
-{
-	arena_t*	arena_const;
-	arena_t*	arena_tmp;
-	string_set*	strings;
-	value_array_t*	constants;
-	char*		src;
-};
-
-chunk_t*	compiler_run(compiler_t*);
+chunk_t*	compiler_run(context_t*, char* src);
 
 #endif

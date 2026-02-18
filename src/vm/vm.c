@@ -33,13 +33,17 @@ do											\
 		return VM_RES_RUNTIME_ERR;						\
 	}										\
 											\
+	value_t*	top = ((vm)->stack_top - 1);					\
+											\
 	if (a.type == b.type)								\
 	{										\
 		switch (b.type)								\
 		{									\
-		case VAL_INT	: ((vm)->stack_top - 1)->as.integer op##= a.as.integer;	break;\
-		case VAL_NB	: ((vm)->stack_top - 1)->as.number op##= a.as.number;	break;\
-		case VAL_STR	: string_concat(b.as.string, a.as.string);		\
+		case VAL_INT	: top->as.integer op##= a.as.integer;	break;		\
+		case VAL_NB	: top->as.number op##= a.as.number;	break;		\
+		case VAL_STR	:							\
+			top->as.string = string_concat((vm)->context->arena_line, b.as.string, a.as.string);\
+			break;								\
 		default:								\
 		}									\
 											\
@@ -48,8 +52,8 @@ do											\
 											\
 	switch (b.type)									\
 	{										\
-	case VAL_INT	: *((vm)->stack_top - 1) = VAL_AS_NB((f64)b.as.integer op a.as.number); break;\
-	case VAL_NB	: ((vm)->stack_top - 1)->as.number op##= (f64)a.as.integer; break;\
+	case VAL_INT	: *top = VAL_AS_NB((f64)b.as.integer op a.as.number); break;	\
+	case VAL_NB	: top->as.number op##= (f64)a.as.integer; break;		\
 	case VAL_STR	:								\
 		VM_ERROR(vm, "Operands cannot be strings and numbers");			\
 		return VM_RES_RUNTIME_ERR;						\
@@ -201,14 +205,12 @@ static inline void
 vm_reset_stack(vm_t* vm) { vm->stack_top = vm->stack; }
 
 inline vm_t*
-vm_new(arena_t* arena)
+vm_new(context_t* context)
 {
-	vm_t*	vm = ARENA_PUSH_STRUCT(arena, vm_t);
+	vm_t*	vm = ARENA_PUSH_STRUCT(context->arena_glb, vm_t);
 
-	vm->arena	= arena;
 	vm->stack_top	= vm->stack;
-	vm->strings	= string_set_new(arena, 100);
-	vm->globals	= value_map_new(arena, 100);
+	vm->context	= context;
 
 	return vm;
 }
@@ -225,6 +227,9 @@ vm_run(vm_t* vm, chunk_t* chunk)
 	vm->tail = chunk;
 	vm->ip	 = chunk->code;
 
+	value_array_t*	constants	= vm->context->constants;
+	value_map*	globals		= vm->context->globals;
+
 	for (;;)
 	{
 		u8	instruction = vm_consume_byte(vm);
@@ -233,7 +238,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 		{
 		case OP_CONST_8:
 		{
-			value_t	constant = value_array_read(vm->tail->constants, vm_consume_byte(vm));
+			value_t	constant = value_array_read(constants, vm_consume_byte(vm));
 			vm_push(vm, constant);
 		} break;
 		case OP_CONST_16:
@@ -241,7 +246,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			u32	l	= vm_consume_byte(vm);
 			u32	r	= vm_consume_byte(vm);
 			u32	index	= CHUNK_CONST_16_GET(l, r);
-			value_t	constant= value_array_read(vm->tail->constants, index);
+			value_t	constant= value_array_read(constants, index);
 
 			vm_push(vm, constant);
 		} break;
@@ -250,12 +255,12 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			value_t		val	= vm_pop(vm);
 			value_t		name	= vm_pop(vm);
 
-			value_map_put(vm->globals, name, val);
+			value_map_put(globals, name, val);
 		} break;
 		case OP_GET_GLOBAL:
 		{
 			value_t		name	= vm_pop(vm);
-			value_t*	val	= value_map_get(vm->globals, name);
+			value_t*	val	= value_map_get(globals, name);
 			
 			if (!val)
 			{

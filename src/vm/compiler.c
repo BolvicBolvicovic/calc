@@ -6,7 +6,8 @@
 #include <vm/compiler.h>
 
 #define PARSER_EMIT_BYTE(parser, byte)	\
-	parser->chunk = chunk_write(parser->arena_tmp, parser->chunk, byte, parser->prev.line)
+	(parser)->chunk =		\
+		chunk_write((parser)->context->arena_line, (parser)->chunk, byte, (parser)->prev.line)
 #define PARSER_EMIT_BYTES(parser, ...)			\
 do							\
 {							\
@@ -147,7 +148,7 @@ parser_expression(parser_t* parser) { parser_parse_precedence(parser, PREC_BIND)
 static void
 parser_identifier(parser_t* parser)
 {
-	arena_t*	arena	= parser->arena_tmp;
+	arena_t*	arena	= parser->context->arena_line;
 	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
 
 	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), parser->prev.line);
@@ -159,7 +160,7 @@ static void
 parser_number(parser_t* parser)
 {
 	value_t	val = VAL_AS_NB(strtod(parser->prev.start, 0));
-	parser->chunk = chunk_write_const(parser->arena_tmp, parser->chunk, val, parser->prev.line);
+	parser->chunk = chunk_write_const(parser->context->arena_line, parser->chunk, val, parser->prev.line);
 }
 
 static void
@@ -196,20 +197,20 @@ parser_string(parser_t* parser)
 	u32		line	= parser->prev.line;
 	u32		size	= parser->prev.size - 2;
 	char*		start	= parser->prev.start + 1;
-	string_set*	strings	= parser->chunk->strings;
+	string_set*	strings	= parser->context->strings;
 	string_t	tmp_str	= {.size=size, .length=size, .buf=start};
 	string_t**	has_str	= string_set_has_key(strings, &tmp_str);
 
 	if (has_str)
 	{
 		parser->chunk	= chunk_write_const(
-				parser->arena_tmp, parser->chunk, VAL_AS_STR(*has_str), line);
+				parser->context->arena_line, parser->chunk, VAL_AS_STR(*has_str), line);
 		return;
 	}
 	
-	string_t*	str = string_new(parser->arena_const, start, size);
+	string_t*	str = string_new(parser->context->arena_glb, start, size);
 	
-	parser->chunk	= chunk_write_const(parser->arena_tmp, parser->chunk, VAL_AS_STR(str), line);
+	parser->chunk	= chunk_write_const(parser->context->arena_line, parser->chunk, VAL_AS_STR(str), line);
 	string_set_put(strings, str, line);
 }
 
@@ -284,7 +285,7 @@ parser_var(parser_t* parser, char* err)
 {
 	parser_consume(parser, TK_ID, err);
 
-	arena_t*	arena	= parser->arena_tmp;
+	arena_t*	arena	= parser->context->arena_glb;
 	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
 
 	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), parser->prev.line);
@@ -338,24 +339,20 @@ parser_declaration(parser_t* parser)
 }
 
 chunk_t*
-compiler_run(compiler_t* compiler)
+compiler_run(context_t* context, char* src)
 {
-	chunk_t*	expr	= chunk_new(compiler->arena_tmp, 500);
+	chunk_t*	expr	= chunk_new(context, 500);
 	parser_t*	parser	= &(parser_t)
 	{
 		.chunk		= expr,
-		.arena_tmp	= compiler->arena_tmp,
-		.arena_const	= compiler->arena_const,
+		.context	= context,
 		.scanner	=
 		{
-			.start		= compiler->src,
-			.current	= compiler->src,
+			.start		= src,
+			.current	= src,
 			.line		= 1,
 		}
 	};
-
-	expr->constants = compiler->constants;
-	expr->strings = compiler->strings;
 
 	if (!parser_advance(parser))
 		return 0;
@@ -369,7 +366,7 @@ compiler_run(compiler_t* compiler)
 		return 0;
 	}
 	
-	chunk_write(compiler->arena_tmp, expr, OP_RET, parser->prev.line);
+	chunk_write(context->arena_line, expr, OP_RET, parser->prev.line);
 
 	return expr;
 }

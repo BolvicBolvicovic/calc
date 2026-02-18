@@ -256,13 +256,40 @@ string_cmp(string_t* s1, string_t* s2)
 	return i == size;
 }
 
-inline void
-string_concat(string_t* s1, string_t* s2)
+string_t*
+string_copy(arena_t* arena, string_t* str)
 {
-	s1->size += s2->size;
-	while (s1->next)
-		s1 = s1->next;
-	s1->next = s2;
+	string_t*	str_new = string_new(arena, str->buf, str->size);
+	string_t*	tmp	= str_new;
+
+	str_new->length	= str->length;
+	str		= str->next;
+
+	while (str)
+	{
+		tmp->next	= string_new(arena, str->buf, str->length);
+		str		= str->next;
+		tmp		= tmp->next;
+	}
+
+	return str_new;
+}
+
+string_t*
+string_concat(arena_t* arena, string_t* s1, string_t* s2)
+{
+	string_t*	str1 = string_copy(arena, s1);
+	string_t*	str2 = string_copy(arena, s2);
+	string_t*	tmp = str1;
+
+	tmp->size += str2->size;
+
+	while (tmp->next)
+		tmp = tmp->next;
+
+	tmp->next = str2;
+
+	return str1;
 }
 
 inline string_t*

@@ -92,20 +92,13 @@ main(void)
 #include <vm/value.h>
 #include <vm/vm.h>
 #include <vm/compiler.h>
+#include <vm/context.h>
 
 s32
 main(s32 argc, char** argv)
 {
-	arena_t*	arena_tmp	= ARENA_ALLOC();
-	arena_t*	arena_const	= ARENA_ALLOC();
-	vm_t*		vm		= vm_new(arena_const);
-	compiler_t	compiler	=
-	{
-		.arena_const=arena_const,
-		.arena_tmp=arena_tmp,
-		.strings=vm->strings,
-		.constants=value_array_new(arena_const, 1000),
-	};
+	context_t*	context		= context_new();
+	vm_t*		vm		= vm_new(context);
 
 	//struct sigaction	sa = {0};
 
@@ -118,19 +111,20 @@ main(s32 argc, char** argv)
 	{
 	case 1:
 		u32	l_size	= 0;
+		char*	line;
 
-		while ((compiler.src = readline(PROMPT)))
+		while ((line = readline(PROMPT)))
 		{
-			arena_temp_t	tmp = arena_temp_begin(arena_tmp);
+			arena_temp_t	tmp = arena_temp_begin(context->arena_line);
 
-			if ((l_size = strlen(compiler.src)))
-				add_history(compiler.src);
+			if ((l_size = strlen(line)))
+				add_history(line);
 			else
 				continue;
 			
 			//interrupted = 0;
 
-			chunk_t*	bytes	= compiler_run(&compiler);
+			chunk_t*	bytes	= compiler_run(context, line);
 			vm_result_t	result	= vm_run(vm, bytes);
 
 			if (result == VM_RES_COMPILE_ERR) exit(65);
@@ -141,14 +135,14 @@ main(s32 argc, char** argv)
 			}
 
 			arena_temp_end(tmp);
-			free(compiler.src);
+			context_reset_line(context);
+			free(line);
 		}
 
 		return 0;
 	case 2:
-		compiler.src = read_file(arena_tmp, argv[1]);
-
-		chunk_t*	bytes	= compiler_run(&compiler);
+		char*		src	= read_file(context->arena_line, argv[1]);
+		chunk_t*	bytes	= compiler_run(context, src);
 		vm_result_t	result	= vm_run(vm, bytes);
 
 		if (result == VM_RES_COMPILE_ERR) exit(65);

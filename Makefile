@@ -11,7 +11,7 @@ LFLAGS		= -lreadline -lm
 INC		= -Iinclude
 
 SRCS_INT	= $(addprefix src/interpreter/, lexer.c parser.c evaluator.c errors.c $(addprefix builtins/, polynomials.c roots.c trigo.c electricity.c plot.c))
-SRCS_VM 	= $(addprefix src/vm/, chunk.c value.c vm.c compiler.c scanner.c)
+SRCS_VM 	= $(addprefix src/vm/, chunk.c value.c vm.c compiler.c scanner.c context.c)
 SRCS_ANY	= $(addprefix src/, arena.c swissmap.c)
 
 all: run

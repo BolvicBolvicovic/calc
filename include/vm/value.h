@@ -76,8 +76,9 @@ u32		value_array_index(value_array_t*);
 void		value_print(value_t);
 value_t*	value_copy(arena_t*, value_t*);
 bool		string_cmp(string_t* s1, string_t* s2);
-void		string_concat(string_t* s1, string_t* s2);
+string_t*	string_concat(arena_t* arena, string_t* s1, string_t* s2);
 string_t*	string_new(arena_t* arena, char* src, u32 size);
+string_t*	string_copy(arena_t* arena_t, string_t* str);
 
 #ifdef TESTER
 

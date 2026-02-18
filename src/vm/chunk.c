@@ -34,12 +34,11 @@ chunk_write(arena_t* arena, chunk_t* chunk, u8 byte, u32 line)
 	{
 		chunk_t*	new_chunk = ARENA_PUSH_STRUCT(arena, chunk_t);
 
-		new_chunk->capacity	= capacity;
 		new_chunk->code		= ARENA_PUSH_ARRAY(arena, u8, capacity);
-		new_chunk->prev		= chunk;
-		new_chunk->constants	= chunk->constants;
-		new_chunk->strings	= chunk->strings;
 		new_chunk->lines	= ARENA_PUSH_ARRAY(arena, u32, capacity);
+		new_chunk->capacity	= capacity;
+		new_chunk->prev		= chunk;
+		new_chunk->context	= chunk->context;
 		new_chunk->id		= chunk->id + 1;
 		chunk->next		= new_chunk;
 		chunk			= new_chunk;
@@ -66,7 +65,7 @@ chunk_write(arena_t* arena, chunk_t* chunk, u8 byte, u32 line)
 chunk_t*
 chunk_write_const(arena_t* arena, chunk_t* chunk, value_t constant, u32 line)
 {
-	value_array_t*	constants = chunk->constants;
+	value_array_t*	constants = chunk->context->constants;
 
 	value_array_write(arena, constants, constant);
 
@@ -88,13 +87,15 @@ chunk_write_const(arena_t* arena, chunk_t* chunk, value_t constant, u32 line)
 }
 
 chunk_t*
-chunk_new(arena_t* arena, u32 capacity)
+chunk_new(context_t* context, u32 capacity)
 {
+	arena_t*	arena = context->arena_line;
 	chunk_t*	chunk = ARENA_PUSH_STRUCT(arena, chunk_t);
 
-	chunk->capacity	= capacity;
 	chunk->code	= ARENA_PUSH_ARRAY(arena, op_code_t, capacity);
 	chunk->lines	= ARENA_PUSH_ARRAY(arena, u32, capacity);
+	chunk->capacity	= capacity;
+	chunk->context	= context;
 
 	return chunk;
 }
@@ -103,6 +104,8 @@ chunk_new(arena_t* arena, u32 capacity)
 static u32
 op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 {
+	value_array_t*	constants = chunk->context->constants;
+
 	switch (chunk->code[index])
 	{
 	case OP_CONST_8:
@@ -110,7 +113,7 @@ op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 		u8	const_idx = chunk_read(chunk, offset + 1);
 
 		printf("OP_CONST_8  %5d '", const_idx);
-		value_print(value_array_read(chunk->constants, const_idx));
+		value_print(value_array_read(constants, const_idx));
 		printf("'\n");
 		return 1;
 	}
@@ -120,7 +123,7 @@ op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 			CHUNK_CONST_16_GET(chunk_read(chunk, offset + 1), chunk_read(chunk, offset + 2));
 
 		printf("OP_CONST_16 %5d '", const_idx);
-		value_print(value_array_read(chunk->constants, const_idx));
+		value_print(value_array_read(constants, const_idx));
 		printf("'\n");
 		return 2;
 	}
