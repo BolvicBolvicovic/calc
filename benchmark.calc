@@ -1,43 +1,9 @@
-let hello :: "hello";
-let world :: "world";
-
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
-print hello + " " + world;
+{
+	let hello :: "hello";
+	{
+		let hello :: "hello ";
+		{
+			print hello + "world";
+		}
+	}
+}

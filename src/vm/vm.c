@@ -13,6 +13,7 @@ do								\
 	s32	_line	= _chunk->lines[_inst];			\
 	fprintf(stderr, "\n[line %d] in script\n", _line);	\
 	vm_reset_stack(vm);					\
+	return VM_RES_RUNTIME_ERR;				\
 } while (0)
 
 #define VM_BOP(vm, op)									\
@@ -22,16 +23,10 @@ do											\
 	value_t b = *((vm)->stack_top - 1);						\
 											\
 	if (a.type > VAL_STR || b.type > VAL_STR)					\
-	{										\
 		VM_ERROR(vm, "Operands must be numbers or strings");			\
-		return VM_RES_RUNTIME_ERR;						\
-	}										\
 											\
 	if ((a.type == VAL_STR || b.type == VAL_STR) && memcmp("+", #op, 1) != 0)	\
-	{										\
 		VM_ERROR(vm, "Operands must be numbers");				\
-		return VM_RES_RUNTIME_ERR;						\
-	}										\
 											\
 	value_t*	top = ((vm)->stack_top - 1);					\
 											\
@@ -54,9 +49,7 @@ do											\
 	{										\
 	case VAL_INT	: *top = VAL_AS_NB((f64)b.as.integer op a.as.number); break;	\
 	case VAL_NB	: top->as.number op##= (f64)a.as.integer; break;		\
-	case VAL_STR	:								\
-		VM_ERROR(vm, "Operands cannot be strings and numbers");			\
-		return VM_RES_RUNTIME_ERR;						\
+	case VAL_STR	: VM_ERROR(vm, "Operands cannot be strings and numbers");	\
 	default:									\
 	}										\
 } while (0)
@@ -68,10 +61,7 @@ do											\
 	value_t b = *((vm)->stack_top - 1);						\
 											\
 	if (a.type > VAL_NB || b.type > VAL_NB)						\
-	{										\
 		VM_ERROR(vm, "Operands must be numbers");				\
-		return VM_RES_RUNTIME_ERR;						\
-	}										\
 											\
 	if (a.type == b.type)								\
 	{										\
@@ -100,10 +90,7 @@ do												\
 	value_t	b = *(vm->stack_top - 1);							\
 												\
 	if (a.type == VAL_ARR || b.type == VAL_ARR)						\
-	{											\
 		VM_ERROR(vm, "Operands cannot be array");					\
-		return VM_RES_RUNTIME_ERR;							\
-	}											\
 												\
 	if (a.type == b.type)									\
 	{											\
@@ -148,7 +135,6 @@ do												\
 		break;										\
 	case VAL_STR:										\
 		VM_ERROR(vm, "Operands cannot be object and base type");			\
-		return VM_RES_RUNTIME_ERR;							\
 	default:										\
 	}											\
 } while (0)
@@ -202,6 +188,16 @@ vm_pop(vm_t* vm)
 	return vm->stack_top;
 }
 
+static inline value_t*
+vm_pop_many(vm_t* vm, u8 count)
+{
+	if (vm->stack_top - count + 1 <= vm->stack)
+		return 0;
+
+	vm->stack_top -= count;
+	return vm->stack_top;
+}
+
 static inline void
 vm_reset_stack(vm_t* vm) { vm->stack_top = vm->stack; }
 
@@ -251,6 +247,13 @@ vm_run(vm_t* vm, chunk_t* chunk)
 
 			vm_push(vm, constant);
 		} break;
+		case OP_POP_MANY:
+		{
+			u8	count = vm_consume_byte(vm);
+
+			if (!vm_pop_many(vm, count))
+				VM_ERROR(vm, "Could not pop %d variables", count);
+		} break;
 		case OP_DEFINE_GLOBAL:
 		{
 			value_t		val	= *vm_pop(vm);
@@ -264,10 +267,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			value_t*	val	= value_map_get(globals, name);
 			
 			if (!val)
-			{
 				VM_ERROR(vm, "Undefined variable %s", name.as.string->buf);
-				return VM_RES_RUNTIME_ERR;
-			}
 
 			vm_push(vm, *val);
 		} break;
@@ -282,7 +282,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			case VAL_ARR	:
 			case VAL_STR	:
 			case VAL_BOOL	:
-				VM_ERROR(vm, "Operand must be a number"); return VM_RES_RUNTIME_ERR;
+				VM_ERROR(vm, "Operand must be a number");
 			}
 		} break;
 		case OP_NOT:
@@ -296,27 +296,28 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			case VAL_BOOL	: *val = VAL_AS_BOOL(!val->as.boolean); break;
 			case VAL_STR	:
 			case VAL_ARR	:
-				VM_ERROR(vm, "Operand cannot be an object"); return VM_RES_RUNTIME_ERR;
+				VM_ERROR(vm, "Operand cannot be an object");
 			}
 		} break;
-		case OP_ZERO	: vm_push(vm, VAL_AS_INT(0)); break;
-		case OP_EQ	: VM_EQ(vm, ==); break;
-		case OP_NOT_EQ	: VM_EQ(vm, !=); break;
-		case OP_MORE	: VM_COMPARE(vm, >); break;
-		case OP_LESS	: VM_COMPARE(vm, <); break;
-		case OP_MORE_EQ	: VM_COMPARE(vm, >=); break;
-		case OP_LESS_EQ	: VM_COMPARE(vm, <=); break;
-		case OP_ADD	: VM_BOP(vm, +); break;
-		case OP_SUB	: VM_BOP(vm, -); break;
-		case OP_MUL	: VM_BOP(vm, *); break;
-		case OP_DIV	: VM_BOP(vm, /); break;
-		case OP_NAN	: vm_push(vm, VAL_AS_NB(NAN)); break; 
-		case OP_INF	: vm_push(vm, VAL_AS_NB(INFINITY)); break;
-		case OP_TRUE	: vm_push(vm, VAL_AS_BOOL(1)); break;
-		case OP_FALSE	: vm_push(vm, VAL_AS_BOOL(0)); break;
-		case OP_PRINT	: value_print(*vm_pop(vm)); printf("\n"); break;
-		case OP_POP	: vm_pop(vm); break;
-		case OP_RET	: return VM_RES_OK;
+		case OP_GET_LOCAL	: vm_push(vm, vm->stack[vm_consume_byte(vm)]); break;
+		case OP_ZERO		: vm_push(vm, VAL_AS_INT(0)); break;
+		case OP_EQ		: VM_EQ(vm, ==); break;
+		case OP_NOT_EQ		: VM_EQ(vm, !=); break;
+		case OP_MORE		: VM_COMPARE(vm, >); break;
+		case OP_LESS		: VM_COMPARE(vm, <); break;
+		case OP_MORE_EQ		: VM_COMPARE(vm, >=); break;
+		case OP_LESS_EQ		: VM_COMPARE(vm, <=); break;
+		case OP_ADD		: VM_BOP(vm, +); break;
+		case OP_SUB		: VM_BOP(vm, -); break;
+		case OP_MUL		: VM_BOP(vm, *); break;
+		case OP_DIV		: VM_BOP(vm, /); break;
+		case OP_NAN		: vm_push(vm, VAL_AS_NB(NAN)); break; 
+		case OP_INF		: vm_push(vm, VAL_AS_NB(INFINITY)); break;
+		case OP_TRUE		: vm_push(vm, VAL_AS_BOOL(1)); break;
+		case OP_FALSE		: vm_push(vm, VAL_AS_BOOL(0)); break;
+		case OP_PRINT		: value_print(*vm_pop(vm)); printf("\n"); break;
+		case OP_POP		: vm_pop(vm); break;
+		case OP_RET		: return VM_RES_OK;
 		}
 	}
 

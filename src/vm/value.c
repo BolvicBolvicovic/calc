@@ -122,15 +122,15 @@ value_array_write(arena_t* arena, value_array_t* array, value_t value)
 value_t
 value_array_read(value_array_t* array, u32 index)
 {
+	assert(array);
+
 	u32	capacity	= array->capacity;
 	u32	skip_array	= index / capacity;
 
 	index -= capacity * skip_array;
 
-	while (array && array->id < skip_array)
+	while (array->next && array->id < skip_array)
 		array = array->next;
-
-	assert(array);
 	
 	return array->values[index];
 }

@@ -5,12 +5,24 @@
 #include <vm/scanner.h>
 #include <vm/context.h>
 
+#define LOCAL_COUNT	(UINT8_MAX + 1)
+
+typedef struct local_t	local_t;
+struct local_t
+{
+	token_t	name;
+	u32	depth;
+};
+
 typedef struct parser_t parser_t;
 struct parser_t
 {
 	token_t		prev;
 	token_t		current;
 	scanner_t	scanner;
+	u32		local_count;
+	u32		scope_depth;
+	local_t		locals[LOCAL_COUNT];
 	bool		error;
 	bool		panic;
 	chunk_t*	chunk;

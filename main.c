@@ -137,7 +137,7 @@ main(s32 argc, char** argv)
 
 
 			printf("> \e[3m");
-			value_print(*vm->stack_top);
+			value_print(*(vm->stack_top - 1));
 			printf("\e[0m\n");
 
 			vm->stack_top = vm->stack;

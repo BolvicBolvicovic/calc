@@ -24,8 +24,9 @@ static void	parser_unary(parser_t*);
 static void	parser_binary(parser_t*);
 static void	parser_literal(parser_t*);
 static void	parser_array(parser_t*);
-static void	parser_string(parser_t* parser);
-static void	parser_identifier(parser_t* parser);
+static void	parser_string(parser_t*);
+static void	parser_identifier(parser_t*);
+static void	parser_declaration(parser_t*);
 
 static parser_rules_t rules[]	=
 {
@@ -75,6 +76,22 @@ static parser_rules_t rules[]	=
 	[TK_EOF]	= {NULL,		NULL,		PREC_NONE},
 };
 
+static __always_inline bool
+parser_id_cmp(token_t* t1, token_t* t2)
+{
+	u32	size = t1->size;
+
+	return size == t2->size && memcmp(t1->start, t2->start, size) == 0;
+}
+
+static inline void
+parser_error(parser_t* parser, u32 line, char* err)
+{
+	parser->error = 1;
+	parser->panic = 1;
+	ERROR(line, err);
+}
+
 static inline bool
 parser_advance(parser_t* parser)
 {
@@ -83,9 +100,7 @@ parser_advance(parser_t* parser)
 
 	if (parser->current.type == TK_ERR)
 	{
-		parser->error = 1;
-		parser->panic = 1;
-		ERROR(parser->current.line, parser->current.start);
+		parser_error(parser, parser->current.line, parser->current.start);
 		return 0;
 	}
 
@@ -98,9 +113,7 @@ parser_consume(parser_t* parser, token_type_t type, char* err)
 	if (parser->current.type == type)
 		return parser_advance(parser);
 
-	parser->error = 1;
-	parser->panic = 1;
-	ERROR(parser->current.line, err);
+	parser_error(parser, parser->current.line, err);
 	return 0;
 }
 
@@ -116,9 +129,7 @@ parser_parse_precedence(parser_t* parser, precedence_t precedence)
 
 	if (!prefix_rule)
 	{
-		parser->error = 1;
-		parser->panic = 1;
-		ERROR(parser->prev.line, "Expect expression");
+		parser_error(parser, parser->prev.line, "Expect expression");
 		return;
 	}
 	
@@ -132,9 +143,7 @@ parser_parse_precedence(parser_t* parser, precedence_t precedence)
 		
 		if (!infix_rule)
 		{
-			parser->error = 1;
-			parser->panic = 1;
-			ERROR(parser->prev.line, "Expect expression");
+			parser_error(parser, parser->prev.line, "Expect expression");
 			return;
 		}
 
@@ -145,14 +154,41 @@ parser_parse_precedence(parser_t* parser, precedence_t precedence)
 static __always_inline void
 parser_expression(parser_t* parser) { parser_parse_precedence(parser, PREC_BIND); }
 
+static s32
+parser_resolve_local(parser_t* parser, token_t* var)
+{
+	for (s32 i = parser->local_count - 1; i >= 0; i--)
+	{
+		local_t*	local = &parser->locals[i];
+
+		if (parser_id_cmp(&local->name, var))
+		{
+			if (local->depth == UINT32_MAX)
+				parser_error(parser, parser->prev.line,
+						"Cannot read variable in its own initializer");
+
+			return i;
+		}
+	}
+
+	return -1;
+}
+
 static void
 parser_identifier(parser_t* parser)
 {
+	s32		arg	= parser_resolve_local(parser, &parser->prev);
+	
+	if (arg != -1)
+	{
+		PARSER_EMIT_BYTES(parser, OP_GET_LOCAL, arg);
+		return;
+	}
+
 	arena_t*	arena	= parser->context->arena_line;
 	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
 
 	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), parser->prev.line);
-
 	PARSER_EMIT_BYTE(parser, OP_GET_GLOBAL);
 }
 
@@ -160,7 +196,12 @@ static void
 parser_number(parser_t* parser)
 {
 	value_t	val = VAL_AS_NB(strtod(parser->prev.start, 0));
-	parser->chunk = chunk_write_const(parser->context->arena_line, parser->chunk, val, parser->prev.line);
+
+	if (val.as.number == 0)
+		PARSER_EMIT_BYTE(parser, OP_ZERO);
+	else
+		parser->chunk = chunk_write_const(
+				parser->context->arena_line, parser->chunk, val, parser->prev.line);
 }
 
 static void
@@ -272,11 +313,38 @@ parser_statement(parser_t* parser)
 		parser_consume(parser, TK_SC, "Expect ';' at end of expression");
 		PARSER_EMIT_BYTE(parser, OP_PRINT);
 	}
+	else if (parser_match(parser, TK_LB))
+	{
+		parser->scope_depth++;
+
+		while (parser->current.type != TK_RB && parser->current.type != TK_EOF)
+			parser_declaration(parser);
+
+		parser_consume(parser, TK_RB, "Expect '}' after block");
+		
+		if (parser->error)
+			return;
+
+		parser->scope_depth--;
+
+		u32	to_pop	= 0;
+		u32	count	= parser->local_count;
+
+		while (count-to_pop > 0
+			&& parser->locals[count-1-to_pop].depth > parser->scope_depth)
+			to_pop++;
+
+		parser->local_count -= to_pop;
+
+		if (to_pop < 1)
+			PARSER_EMIT_BYTES(parser, OP_POP_MANY, to_pop);
+		else if (to_pop == 1)
+			PARSER_EMIT_BYTE(parser, OP_POP);
+	}
 	else
 	{
 		parser_expression(parser);
 		parser_consume(parser, TK_SC, "Expect ';' at end of expression");
-		PARSER_EMIT_BYTE(parser, OP_POP);
 	}
 }
 
@@ -285,10 +353,37 @@ parser_var(parser_t* parser, char* err)
 {
 	parser_consume(parser, TK_ID, err);
 
-	arena_t*	arena	= parser->context->arena_glb;
-	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
+	if (parser->scope_depth > 0)
+	{
+		if (parser->local_count == LOCAL_COUNT)
+		{
+			parser_error(parser, parser->prev.line, "Too many local variables in function");
+			return;
+		}
 
-	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), parser->prev.line);
+		local_t*	local = &parser->locals[parser->local_count++];
+
+		for (u32 i = parser->local_count - 1; i < UINT32_MAX; i--)
+		{
+			local_t*	loc = &parser->locals[i];
+
+			if (loc->depth != UINT32_MAX && loc->depth < parser->scope_depth)
+				break;
+
+			if (parser_id_cmp(&local->name, &loc->name))
+				parser_error(parser, parser->prev.line, "Redefining var in this scope");
+		}
+
+		local->name = parser->prev;
+		local->depth= UINT32_MAX;
+		return;
+	}
+
+	arena_t*	arena	= parser->context->arena_glb;
+	token_t		token	= parser->prev;
+	string_t*	str	= string_new(arena, token.start, token.size);
+
+	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), token.line);
 }
 
 static void
@@ -296,12 +391,23 @@ parser_var_decl(parser_t* parser)
 {
 	parser_var(parser, "Expect variable name");
 
+	if (parser->error)
+		return;
+
 	if (parser_match(parser, TK_BIND))
 		parser_expression(parser);
-	else
+	else if (parser_match(parser, TK_SC))
 		PARSER_EMIT_BYTE(parser, OP_ZERO);
+	else
+		parser_error(parser, parser->current.line,
+				"Expect '::' to bind variable or ';' at end of expression");
 
-	parser_consume(parser, TK_SC, "Expect ';' at end of expression");
+	if (parser->scope_depth > 0)
+	{
+		parser->locals[parser->local_count - 1].depth = parser->scope_depth;
+		return;
+	}
+
 	PARSER_EMIT_BYTE(parser, OP_DEFINE_GLOBAL);
 }
 

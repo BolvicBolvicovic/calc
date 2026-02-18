@@ -127,8 +127,17 @@ op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 		printf("'\n");
 		return 2;
 	}
+	case OP_POP_MANY:
+	{
+		u8	count = chunk_read(chunk, offset + 1);
+
+		printf("OP_POP_MANY  %5d\n", count);
+		return 1;
+	}
+	case OP_ZERO		: printf("OP_ZERO\n"); return 0;
 	case OP_DEFINE_GLOBAL	: printf("OP_DEFINE_GLOBAL\n"); return 0;
 	case OP_GET_GLOBAL	: printf("OP_GET_GLOBAL\n"); return 0;
+	case OP_GET_LOCAL	: printf("OP_GET_LOCAL\n"); return 0;
 	case OP_NAN		: printf("OP_NAN\n"); return 0;
 	case OP_INF		: printf("OP_INF\n"); return 0;
 	case OP_TRUE		: printf("OP_TRUE\n"); return 0;

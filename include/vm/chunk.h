@@ -19,6 +19,7 @@ enum __attribute__((packed)) op_code_t
 	OP_CONST_16,
 	OP_DEFINE_GLOBAL,
 	OP_GET_GLOBAL,
+	OP_GET_LOCAL,
 	OP_ZERO,
 	OP_TRUE,
 	OP_FALSE,
@@ -38,6 +39,7 @@ enum __attribute__((packed)) op_code_t
 	OP_DIV,
 	OP_PRINT,
 	OP_POP,
+	OP_POP_MANY,
 	OP_RET,
 };
 
