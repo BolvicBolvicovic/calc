@@ -1,8 +1,8 @@
-#include <lexer.h>
-#include <evaluator.h>
 #include <swissmap.h>
-#include <builtins.h>
 #include <signal.h>
+#include <interpreter/lexer.h>
+#include <interpreter/evaluator.h>
+#include <interpreter/builtins.h>
 
 volatile s32	interrupted = 0;
 

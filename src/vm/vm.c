@@ -8,12 +8,28 @@
 do								\
 {								\
 	fprintf(stderr, msg, ##__VA_ARGS__);			\
-	chunk_t*_chunk	= vm_find_current_chunk(vm);		\
-	u32	_inst	= vm->ip - _chunk->code - 1;		\
+	chunk_t*_chunk	= (vm)->tail;		\
+	u32	_inst	= (vm)->ip - _chunk->code - 1;		\
 	s32	_line	= _chunk->lines[_inst];			\
 	fprintf(stderr, "\n[line %d] in script\n", _line);	\
 	vm_reset_stack(vm);					\
 	return VM_RES_RUNTIME_ERR;				\
+} while (0)
+
+#define VM_UOP_NB(vm, op)								\
+do											\
+{											\
+	value_t*	val = (vm)->stack_top - 1;					\
+											\
+	switch (val->type)								\
+	{										\
+	case VAL_NB	: val->as.number = op val->as.number; break;			\
+	case VAL_INT	: val->as.integer = op val->as.integer; break;			\
+	case VAL_ARR	:								\
+	case VAL_STR	:								\
+	case VAL_BOOL	:								\
+		VM_ERROR(vm, "Operand must be a number");				\
+	}										\
 } while (0)
 
 #define VM_BOP(vm, op)									\
@@ -52,6 +68,26 @@ do											\
 	case VAL_STR	: VM_ERROR(vm, "Operands cannot be strings and numbers");	\
 	default:									\
 	}										\
+} while (0)
+
+#define VM_BITOP(vm, op)								\
+do											\
+{											\
+	value_t	a = *vm_pop(vm);							\
+	value_t b = *((vm)->stack_top - 1);						\
+											\
+	if (a.type > VAL_NB || b.type > VAL_NB)						\
+		VM_ERROR(vm, "Operands must be numbers");				\
+											\
+	value_t*	top = ((vm)->stack_top - 1);					\
+											\
+	if (a.type == VAL_NB)								\
+		a.as.integer = (s64)a.as.number;					\
+	if (b.type == VAL_NB)								\
+		b.as.integer = (s64)b.as.number;					\
+											\
+	top->as.integer	= a.as.integer op b.as.integer;					\
+	top->type	= VAL_INT;							\
 } while (0)
 
 #define VM_COMPARE(vm, op)								\
@@ -139,26 +175,12 @@ do												\
 	}											\
 } while (0)
 
-static chunk_t*
-vm_find_current_chunk(vm_t* vm)
-{
-	chunk_t*	chunk 	= vm->head;
-	u8*		ip	= vm->ip;
-	u32		capacity= chunk->capacity;
-
-	while (chunk && chunk->code + capacity < ip)
-		chunk = chunk->next;
-
-	return chunk;
-}
-
 static inline u8
 vm_consume_byte(vm_t* vm)
 {
-	u32	capacity= vm->tail->capacity;
 	u8	byte	= *vm->ip;
 
-	if (vm->ip == vm->tail->code + capacity)
+	if (vm->ip == vm->tail->end)
 	{
 		vm->tail= vm->tail->next;
 		vm->ip	= vm->tail->code;
@@ -167,6 +189,25 @@ vm_consume_byte(vm_t* vm)
 		vm->ip++;
 
 	return byte;
+}
+
+static inline void
+vm_revert_state(vm_t* vm, u32 offset)
+{
+	chunk_t*	chunk	= vm->tail;
+	u32		capacity= chunk->capacity;
+	u32		start	= chunk->id * capacity;
+	u32		idx	= (u32)(vm->ip - chunk->code);
+	u32		to_jump	= start + idx - offset;
+
+	while (chunk->prev && to_jump < start)
+	{
+		chunk = chunk->prev;
+		start -= capacity;
+	}
+	
+	vm->ip	= chunk->code + (to_jump - start);
+	vm->tail= chunk;
 }
 
 static inline void
@@ -247,6 +288,34 @@ vm_run(vm_t* vm, chunk_t* chunk)
 
 			vm_push(vm, constant);
 		} break;
+		case OP_JMPF:
+		{
+			value_t*	val	= vm->stack_top - 1;
+			u32		l	= vm_consume_byte(vm);
+			u32		r	= vm_consume_byte(vm);
+			u32		jump	= CHUNK_CONST_16_GET(l, r)
+				* (val->type == VAL_BOOL ? val->as.boolean == 0 : val->as.integer == 0);
+			
+			while (jump--)
+				vm_consume_byte(vm);
+		} break;
+		case OP_JMP:
+		{
+			u32		l	= vm_consume_byte(vm);
+			u32		r	= vm_consume_byte(vm);
+			u32		jump	= CHUNK_CONST_16_GET(l, r);
+			
+			while (jump--)
+				vm_consume_byte(vm);
+		} break;
+		case OP_LOOP:
+		{
+			u32		l	= vm_consume_byte(vm);
+			u32		r	= vm_consume_byte(vm);
+			u32		jump	= CHUNK_CONST_16_GET(l, r);
+			
+			vm_revert_state(vm, jump);
+		} break;
 		case OP_POP_MANY:
 		{
 			u8	count = vm_consume_byte(vm);
@@ -271,19 +340,15 @@ vm_run(vm_t* vm, chunk_t* chunk)
 
 			vm_push(vm, *val);
 		} break;
-		case OP_NEG:
+		case OP_SET_GLOBAL:
 		{
-			value_t*	val = vm->stack_top - 1;
+			value_t		name	= *vm_pop(vm);
+			value_t*	val	= value_map_get(globals, name);
+			
+			if (!val)
+				VM_ERROR(vm, "Undefined variable %s", name.as.string->buf);
 
-			switch (val->type)
-			{
-			case VAL_NB	: val->as.number = -val->as.number; break;
-			case VAL_INT	: val->as.integer = -val->as.integer; break;
-			case VAL_ARR	:
-			case VAL_STR	:
-			case VAL_BOOL	:
-				VM_ERROR(vm, "Operand must be a number");
-			}
+			*val = *vm_pop(vm);
 		} break;
 		case OP_NOT:
 		{
@@ -300,6 +365,7 @@ vm_run(vm_t* vm, chunk_t* chunk)
 			}
 		} break;
 		case OP_GET_LOCAL	: vm_push(vm, vm->stack[vm_consume_byte(vm)]); break;
+		case OP_SET_LOCAL	: vm->stack[vm_consume_byte(vm)] = *(vm->stack_top - 1); break;
 		case OP_ZERO		: vm_push(vm, VAL_AS_INT(0)); break;
 		case OP_EQ		: VM_EQ(vm, ==); break;
 		case OP_NOT_EQ		: VM_EQ(vm, !=); break;
@@ -307,10 +373,16 @@ vm_run(vm_t* vm, chunk_t* chunk)
 		case OP_LESS		: VM_COMPARE(vm, <); break;
 		case OP_MORE_EQ		: VM_COMPARE(vm, >=); break;
 		case OP_LESS_EQ		: VM_COMPARE(vm, <=); break;
+		case OP_NEG		: VM_UOP_NB(vm, -); break;
+		case OP_INC		: VM_UOP_NB(vm, 1+); break;
+		case OP_DEC		: VM_UOP_NB(vm, -1+); break;
 		case OP_ADD		: VM_BOP(vm, +); break;
 		case OP_SUB		: VM_BOP(vm, -); break;
 		case OP_MUL		: VM_BOP(vm, *); break;
 		case OP_DIV		: VM_BOP(vm, /); break;
+		case OP_OR		: VM_BITOP(vm, |); break;
+		case OP_XOR		: VM_BITOP(vm, ^); break;
+		case OP_AND		: VM_BITOP(vm, &); break;
 		case OP_NAN		: vm_push(vm, VAL_AS_NB(NAN)); break; 
 		case OP_INF		: vm_push(vm, VAL_AS_NB(INFINITY)); break;
 		case OP_TRUE		: vm_push(vm, VAL_AS_BOOL(1)); break;

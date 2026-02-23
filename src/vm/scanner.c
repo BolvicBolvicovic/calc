@@ -75,20 +75,26 @@ scanner_get_id_type(scanner_t* scanner)
 
 	switch (c)
 	{
+	case 'a': return scanner_check_keyword(scanner, "nd", TK_AND, 1, 2);
+	case 'd': return scanner_check_keyword(scanner, "ec", TK_DEC, 1, 2);
 	case 'e': return scanner_check_keyword(scanner, "lse", TK_ELSE, 1, 3);
 	case 'f': return *(scanner->start + 1) == 'u'
 			? scanner_check_keyword(scanner, "nc", TK_FUNC, 2, 2)
 			: *(scanner->start + 1) == 'a'
 			? scanner_check_keyword(scanner, "lse", TK_FALSE, 2, 3)
 			: scanner_check_keyword(scanner, "or", TK_FOR, 1, 2);
-	case 'i': return *(scanner->start + 1) == 'f'
-			? TK_IF
-			: scanner_check_keyword(scanner, "nf", TK_INF, 1, 2);
+	case 'i': return *(scanner->start + 1) == 'f' ? TK_IF
+			: *(scanner->start + 1) != 'n'? TK_ID
+			: *(scanner->start + 2) == 'f'? TK_INF
+			: *(scanner->start + 2) == 'c'? TK_INC
+			: TK_ID;
 	case 'l': return scanner_check_keyword(scanner, "et", TK_LET, 1, 2);
 	case 'n': return scanner_check_keyword(scanner, "an", TK_NAN, 1, 2);
+	case 'o': if (*(scanner->start + 1) == 'r') return TK_OR; break;
 	case 'p': return scanner_check_keyword(scanner, "rint", TK_PRINT, 1, 4);
 	case 'r': return scanner_check_keyword(scanner, "eturn", TK_RET, 1, 5);
 	case 't': return scanner_check_keyword(scanner, "rue", TK_TRUE, 1, 3);
+	case 'x': return scanner_check_keyword(scanner, "or", TK_XOR, 1, 2);
 	}
 
 	return TK_ID;
@@ -121,9 +127,10 @@ scanner_consume(scanner_t* scanner)
 	case '*': return token_new(scanner, TK_MUL);
 	case '/': return token_new(scanner, TK_DIV);
 	case '=': return token_new(scanner, TK_EQ);
-	case '&': return token_new(scanner, TK_AND);
-	case '|': return token_new(scanner, TK_OR);
-	case '^': return token_new(scanner, TK_XOR);
+	case '&': return token_new(scanner, TK_ANDL);
+	case '|': return token_new(scanner, TK_ORL);
+	// TODO: use ^ for pow op
+	//case '^': return token_new(scanner, TK_XOR);
 	case '!': return scanner_match(scanner, '=')
 			? token_new(scanner, TK_NOT_EQ)
 			: token_new(scanner, TK_NOT);

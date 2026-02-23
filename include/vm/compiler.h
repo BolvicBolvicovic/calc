@@ -5,6 +5,7 @@
 #include <vm/scanner.h>
 #include <vm/context.h>
 
+// TODO: extend LOCAL_COUNT
 #define LOCAL_COUNT	(UINT8_MAX + 1)
 
 typedef struct local_t	local_t;

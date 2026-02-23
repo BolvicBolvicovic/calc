@@ -3,7 +3,7 @@
 
 #include <vm/chunk.h>
 
-#define VM_STACK_SIZE	0x1000
+#define VM_STACK_SIZE	0x100
 
 typedef enum vm_result_t	vm_result_t;
 enum vm_result_t

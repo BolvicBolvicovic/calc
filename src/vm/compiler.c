@@ -17,6 +17,7 @@ do							\
 } while (0)
 
 static void	parser_parse_precedence(parser_t*, precedence_t);
+static void	parser_var_decl(parser_t*);
 static void	parser_expression(parser_t*);
 static void	parser_number(parser_t*);
 static void	parser_parenthesis(parser_t*);
@@ -27,6 +28,8 @@ static void	parser_array(parser_t*);
 static void	parser_string(parser_t*);
 static void	parser_identifier(parser_t*);
 static void	parser_declaration(parser_t*);
+static void	parser_and(parser_t*);
+static void	parser_or(parser_t*);
 
 static parser_rules_t rules[]	=
 {
@@ -43,6 +46,8 @@ static parser_rules_t rules[]	=
 	[TK_ELSE]	= {NULL,		NULL,		PREC_NONE},
 	[TK_RET]	= {NULL,		NULL,		PREC_NONE},
 	[TK_LET]	= {NULL,		NULL,		PREC_NONE},
+	[TK_AND]	= {NULL,		parser_and,	PREC_AND},
+	[TK_OR]		= {NULL,		parser_or,	PREC_OR},
 
 	[TK_ADD]	= {parser_unary,	parser_binary,	PREC_TERM},
 	[TK_SUB]	= {parser_unary,	parser_binary,	PREC_TERM},
@@ -57,9 +62,11 @@ static parser_rules_t rules[]	=
 	[TK_LESS_EQ]	= {NULL,		parser_binary,	PREC_COMPARISON},
 	[TK_NOT_EQ]	= {NULL,		parser_binary,	PREC_EQUALITY},
 
-	[TK_AND]	= {NULL,		NULL,		PREC_AND},
-	[TK_OR]		= {NULL,		NULL,		PREC_OR},
-	[TK_XOR]	= {NULL,		parser_binary,	PREC_OR},
+	[TK_ANDL]	= {NULL,		parser_binary,	PREC_TERM},
+	[TK_ORL]	= {NULL,		parser_binary,	PREC_TERM},
+	[TK_XOR]	= {NULL,		parser_binary,	PREC_TERM},
+	[TK_INC]	= {parser_unary,	NULL,		PREC_UNARY},
+	[TK_DEC]	= {parser_unary,	NULL,		PREC_UNARY},
 
 	[TK_LP]		= {parser_parenthesis,	NULL,		PREC_NONE},
 	[TK_RP]		= {parser_array,	NULL,		PREC_NONE},
@@ -75,14 +82,6 @@ static parser_rules_t rules[]	=
 	[TK_ERR]	= {NULL,		NULL,		PREC_NONE},
 	[TK_EOF]	= {NULL,		NULL,		PREC_NONE},
 };
-
-static __always_inline bool
-parser_id_cmp(token_t* t1, token_t* t2)
-{
-	u32	size = t1->size;
-
-	return size == t2->size && memcmp(t1->start, t2->start, size) == 0;
-}
 
 static inline void
 parser_error(parser_t* parser, u32 line, char* err)
@@ -105,6 +104,57 @@ parser_advance(parser_t* parser)
 	}
 
 	return 1;
+}
+
+static bool
+parser_match(parser_t* parser, token_type_t type)
+{
+	if (parser->current.type != type)
+		return 0;
+
+	parser_advance(parser);
+	return 1;
+}
+
+static u32
+parser_emit_jump(parser_t* parser, u8 byte)
+{
+	PARSER_EMIT_BYTES(parser, byte, 0xFF, 0xFF);
+	return chunk_index(parser->chunk) - 2;
+}
+
+static void
+parser_emit_loop(parser_t* parser, u32 loop_start)
+{
+	PARSER_EMIT_BYTE(parser, OP_LOOP);
+
+	u32	to_jump = chunk_index(parser->chunk) - loop_start + 2;
+
+	if (to_jump > UINT16_MAX)
+		parser_error(parser, parser->prev.line, "Jump in code too longe");
+
+	PARSER_EMIT_BYTES(parser, (to_jump >> 8) & 0xFF, to_jump & 0xFF);
+}
+
+static void
+parser_patch_jump(parser_t* parser, u32 idx)
+{
+	u32	to_jump = chunk_index(parser->chunk) - idx - 2;
+
+	if (to_jump > UINT16_MAX)
+		parser_error(parser, parser->prev.line, "Jump in code too longe");
+
+	chunk_write_at(parser->chunk, (to_jump >> 8) & 0xFF, idx);
+	chunk_write_at(parser->chunk, to_jump & 0xFF, idx + 1);
+}
+
+
+static __always_inline bool
+parser_id_cmp(token_t* t1, token_t* t2)
+{
+	u32	size = t1->size;
+
+	return size == t2->size && memcmp(t1->start, t2->start, size) == 0;
 }
 
 static inline bool
@@ -157,6 +207,7 @@ parser_expression(parser_t* parser) { parser_parse_precedence(parser, PREC_BIND)
 static s32
 parser_resolve_local(parser_t* parser, token_t* var)
 {
+	// TODO: create a hashmap <local_t, stack_t<pos:u32>>
 	for (s32 i = parser->local_count - 1; i >= 0; i--)
 	{
 		local_t*	local = &parser->locals[i];
@@ -178,18 +229,25 @@ static void
 parser_identifier(parser_t* parser)
 {
 	s32		arg	= parser_resolve_local(parser, &parser->prev);
+	bool		getting = 1;
+	arena_t*	arena	= parser->context->arena_line;
+	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
+	u32		line	= parser->prev.line;
+
+	if (parser_match(parser, TK_BIND))
+	{
+		parser_expression(parser);
+		getting = 0;
+	}
 	
 	if (arg != -1)
 	{
-		PARSER_EMIT_BYTES(parser, OP_GET_LOCAL, arg);
+		PARSER_EMIT_BYTES(parser, (getting ? OP_GET_LOCAL : OP_SET_LOCAL), arg);
 		return;
 	}
 
-	arena_t*	arena	= parser->context->arena_line;
-	string_t*	str	= string_new(arena, parser->prev.start, parser->prev.size);
-
-	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), parser->prev.line);
-	PARSER_EMIT_BYTE(parser, OP_GET_GLOBAL);
+	parser->chunk = chunk_write_const(arena, parser->chunk, VAL_AS_STR(str), line);
+	PARSER_EMIT_BYTE(parser, (getting ? OP_GET_GLOBAL : OP_SET_GLOBAL));
 }
 
 static void
@@ -266,6 +324,8 @@ parser_unary(parser_t* parser)
 	{
 	case TK_SUB: PARSER_EMIT_BYTE(parser, OP_NEG); break;
 	case TK_NOT: PARSER_EMIT_BYTE(parser, OP_NOT); break;
+	case TK_INC: PARSER_EMIT_BYTE(parser, OP_INC); break;
+	case TK_DEC: PARSER_EMIT_BYTE(parser, OP_DEC); break;
 	default: return;
 	}
 }
@@ -290,18 +350,34 @@ parser_binary(parser_t* parser)
 	case TK_MORE_EQ	: PARSER_EMIT_BYTE(parser, OP_MORE_EQ); break;
 	case TK_LESS	: PARSER_EMIT_BYTE(parser, OP_LESS); break;
 	case TK_LESS_EQ	: PARSER_EMIT_BYTE(parser, OP_LESS_EQ); break;
+	case TK_XOR	: PARSER_EMIT_BYTE(parser, OP_XOR); break;
+	case TK_ORL	: PARSER_EMIT_BYTE(parser, OP_OR); break;
+	case TK_ANDL	: PARSER_EMIT_BYTE(parser, OP_AND); break;
 	default: return;
 	}
 }
 
-static bool
-parser_match(parser_t* parser, token_type_t type)
+static void
+parser_and(parser_t* parser)
 {
-	if (parser->current.type != type)
-		return 0;
+	u32	jump = parser_emit_jump(parser, OP_JMPF);
 
-	parser_advance(parser);
-	return 1;
+	PARSER_EMIT_BYTE(parser, OP_POP);
+	parser_parse_precedence(parser, PREC_AND);
+	parser_patch_jump(parser, jump);
+}
+
+static void
+parser_or(parser_t* parser)
+{
+	u32	jump_else	= parser_emit_jump(parser, OP_JMPF);
+	u32	jump		= parser_emit_jump(parser, OP_JMP);
+
+	parser_patch_jump(parser, jump_else);
+	PARSER_EMIT_BYTE(parser, OP_POP);
+
+	parser_parse_precedence(parser, PREC_OR);
+	parser_patch_jump(parser, jump);
 }
 
 static void
@@ -312,6 +388,80 @@ parser_statement(parser_t* parser)
 		parser_expression(parser);
 		parser_consume(parser, TK_SC, "Expect ';' at end of expression");
 		PARSER_EMIT_BYTE(parser, OP_PRINT);
+	}
+	else if (parser_match(parser, TK_IF))
+	{
+		parser_consume(parser, TK_LP, "Expect '(' after 'if'");
+		parser_expression(parser);
+		parser_consume(parser, TK_RP, "Expect ')' after 'if'");
+		
+		u32	jump_then = parser_emit_jump(parser, OP_JMPF);
+		
+		PARSER_EMIT_BYTE(parser, OP_POP);
+		parser_statement(parser);
+		
+		u32	jump_else = parser_emit_jump(parser, OP_JMP);
+		
+		parser_patch_jump(parser, jump_then);
+		PARSER_EMIT_BYTE(parser, OP_POP);
+		
+		if (parser_match(parser, TK_ELSE))
+		{
+			parser_statement(parser);
+		}
+		
+		parser_patch_jump(parser, jump_else);
+	}
+	else if (parser_match(parser, TK_FOR))
+	{
+		parser->scope_depth++;
+		parser_consume(parser, TK_LP, "Expect '(' after 'for'");
+
+		if (!parser_match(parser, TK_SC))
+		{
+			if (parser_match(parser, TK_LET))
+				parser_var_decl(parser);
+			else
+				parser_expression(parser);
+			
+			parser_consume(parser, TK_SC, "Expect ';' at end of expression");
+		}
+
+		u32	loop_start	= chunk_index(parser->chunk);
+		u32	jump		= UINT32_MAX;
+
+		if (!parser_match(parser, TK_SC))
+		{
+			parser_expression(parser);
+			parser_consume(parser, TK_SC, "Expect ';' at end of expression");
+			jump = parser_emit_jump(parser, OP_JMPF);
+			PARSER_EMIT_BYTE(parser, OP_POP);
+		}
+
+		if (!parser_match(parser, TK_RP))
+		{
+			u32	jump_to_body	= parser_emit_jump(parser, OP_JMP);
+			u32	inc_start	= chunk_index(parser->chunk);
+
+			parser_expression(parser);
+			PARSER_EMIT_BYTE(parser, OP_POP);
+			parser_consume(parser, TK_RP, "Expect ')' after 'for' clauses");
+			
+			parser_emit_loop(parser, loop_start);
+			loop_start = inc_start;
+			parser_patch_jump(parser, jump_to_body);
+		}
+
+
+		parser_statement(parser);
+		parser_emit_loop(parser, loop_start);
+		parser->scope_depth--;
+
+		if (jump != UINT32_MAX)
+		{
+			parser_patch_jump(parser, jump);
+			PARSER_EMIT_BYTE(parser, OP_POP);
+		}
 	}
 	else if (parser_match(parser, TK_LB))
 	{

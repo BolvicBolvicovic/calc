@@ -2,6 +2,17 @@
 #include <stdio.h>
 #include <assert.h>
 
+inline u32
+chunk_index(chunk_t* chunk)
+{
+	assert(chunk);
+
+	while (chunk->next)
+		chunk = chunk->next;
+
+	return chunk->id * chunk->capacity + chunk->count - 1;
+}
+
 u8
 chunk_read(chunk_t* chunk, u32 index)
 {
@@ -16,7 +27,17 @@ chunk_read(chunk_t* chunk, u32 index)
 	assert(chunk);
 	
 	return chunk->code[index];
+}
 
+void
+chunk_write_at(chunk_t* chunk, u8 byte, u32 idx)
+{
+	assert(idx <= chunk_index(chunk));
+
+	while (chunk_index(chunk) - chunk->count + 1 > idx)
+		chunk = chunk->prev;
+
+	chunk->code[idx - (chunk_index(chunk) - chunk->count)] = byte;
 }
 
 chunk_t*
@@ -36,6 +57,7 @@ chunk_write(arena_t* arena, chunk_t* chunk, u8 byte, u32 line)
 
 		new_chunk->code		= ARENA_PUSH_ARRAY(arena, u8, capacity);
 		new_chunk->lines	= ARENA_PUSH_ARRAY(arena, u32, capacity);
+		new_chunk->end		= new_chunk->code + capacity;
 		new_chunk->capacity	= capacity;
 		new_chunk->prev		= chunk;
 		new_chunk->context	= chunk->context;
@@ -94,6 +116,7 @@ chunk_new(context_t* context, u32 capacity)
 
 	chunk->code	= ARENA_PUSH_ARRAY(arena, op_code_t, capacity);
 	chunk->lines	= ARENA_PUSH_ARRAY(arena, u32, capacity);
+	chunk->end	= chunk->code + capacity;
 	chunk->capacity	= capacity;
 	chunk->context	= context;
 
@@ -134,10 +157,48 @@ op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 		printf("OP_POP_MANY  %5d\n", count);
 		return 1;
 	}
+	case OP_JMPF:
+	{
+		u32	addr =
+			CHUNK_CONST_16_GET(chunk_read(chunk, offset + 1), chunk_read(chunk, offset + 2));
+
+		printf("OP_JMPF %9d\n", addr);
+		return 2;
+	}
+	case OP_JMP:
+	{
+		u32	addr =
+			CHUNK_CONST_16_GET(chunk_read(chunk, offset + 1), chunk_read(chunk, offset + 2));
+
+		printf("OP_JMP %10d\n", addr);
+		return 2;
+	}
+	case OP_LOOP:
+	{
+		u32	addr =
+			CHUNK_CONST_16_GET(chunk_read(chunk, offset + 1), chunk_read(chunk, offset + 2));
+
+		printf("OP_LOOP %9d\n", addr);
+		return 2;
+	}
+	case OP_GET_LOCAL:
+	{
+		u8	count = chunk_read(chunk, offset + 1);
+
+		printf("OP_GET_LOCAL  %3d\n", count);
+		return 1;
+	}
+	case OP_SET_LOCAL:
+	{
+		u8	count = chunk_read(chunk, offset + 1);
+
+		printf("OP_SET_LOCAL  %3d\n", count);
+		return 1;
+	}
 	case OP_ZERO		: printf("OP_ZERO\n"); return 0;
 	case OP_DEFINE_GLOBAL	: printf("OP_DEFINE_GLOBAL\n"); return 0;
 	case OP_GET_GLOBAL	: printf("OP_GET_GLOBAL\n"); return 0;
-	case OP_GET_LOCAL	: printf("OP_GET_LOCAL\n"); return 0;
+	case OP_SET_GLOBAL	: printf("OP_SET_GLOBAL\n"); return 0;
 	case OP_NAN		: printf("OP_NAN\n"); return 0;
 	case OP_INF		: printf("OP_INF\n"); return 0;
 	case OP_TRUE		: printf("OP_TRUE\n"); return 0;
@@ -154,6 +215,9 @@ op_code_disassemble(chunk_t* chunk, u32 index, u32 offset)
 	case OP_SUB		: printf("OP_SUB\n"); return 0;
 	case OP_MUL		: printf("OP_MUL\n"); return 0;
 	case OP_DIV		: printf("OP_DIV\n"); return 0;
+	case OP_XOR		: printf("OP_XOR\n"); return 0;
+	case OP_AND		: printf("OP_AND\n"); return 0;
+	case OP_OR		: printf("OP_OR\n"); return 0;
 	case OP_PRINT		: printf("OP_PRINT\n"); return 0;
 	case OP_POP		: printf("OP_POP\n"); return 0;
 	case OP_RET		: printf("OP_RET\n"); return 0;
